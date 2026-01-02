@@ -1,0 +1,5 @@
+A smart contract is a program that runs on a blockchain.
+
+Smart contracts automatically execute when predefined conditions are met. They are written in languages like Solidity.
+
+Smart contracts are used in DeFi, NFTs, DAOs, and many other Web3 applications.

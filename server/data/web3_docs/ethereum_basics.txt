@@ -1,0 +1,5 @@
+Ethereum is a decentralized blockchain platform that enables developers to build smart contracts and decentralized applications (dApps).
+
+Ethereum introduced smart contracts, which are self-executing programs stored on the blockchain. These contracts run exactly as programmed without downtime or interference.
+
+Ether (ETH) is the native cryptocurrency used to pay for transaction fees and computational services on the Ethereum network.

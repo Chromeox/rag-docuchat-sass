@@ -1,0 +1,5 @@
+Staking is the process of locking cryptocurrency to support the operations of a blockchain network.
+
+In Ethereum, staking involves depositing ETH to become a validator. Validators help secure the network by validating transactions and proposing new blocks.
+
+In return, validators earn rewards in ETH. Staking replaced mining when Ethereum transitioned to Proof of Stake.

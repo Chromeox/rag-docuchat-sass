@@ -1,0 +1,48 @@
+# ---- Core API ----
+fastapi==0.110.0
+uvicorn[standard]==0.29.0
+pydantic==2.12.5
+# bcrypt==4.3.0
+
+# ---- Environment ----
+python-dotenv==1.0.1
+
+# ---- Langchain ----
+langchain==1.2.0
+langchain-community==0.4.1
+langchain-text-splitters==1.1.0
+
+
+# ---- Embeddings ----
+langchain-openai==1.1.6
+langchain-huggingface==1.2.0
+langchain-ollama==1.0.1
+langchain-groq==1.1.1
+
+# ---- OpenAI ----
+openai==2.14.0
+
+# ---- Embeddings & Vector DB ----
+faiss-cpu==1.13.0
+tiktoken==0.7.0
+
+# ---- Async / Performance ----
+httpx==0.27.0
+
+# ---- Optional (Recommended) ----
+tenacity==8.2.3
+loguru==0.7.2
+
+# ---- Database ----
+sqlalchemy==2.0.37
+psycopg2-binary==2.9.10
+
+# ---- Authentication ----
+passlib[bcrypt]==1.7.4
+bcrypt==3.2.2
+python-jose[cryptography]
+alembic
+
+
+sentence-transformers==2.7.0
+torch>=2.0.0
