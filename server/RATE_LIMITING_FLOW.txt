@@ -1,0 +1,245 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║                    DOCUCHAT RATE LIMITING FLOW DIAGRAM                     ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              CLIENT REQUEST                                 │
+│  Example: POST /api/upload with X-User-ID: user_abc123                    │
+└────────────────────────────────┬────────────────────────────────────────────┘
+                                 │
+                                 ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          FASTAPI APPLICATION                                │
+│                                                                             │
+│  1. Request hits endpoint:                                                  │
+│     @router.post("/api/upload")                                            │
+│     @limiter.limit("10/minute")                                            │
+│     async def upload_documents(request: Request, ...):                     │
+│         ...                                                                 │
+└────────────────────────────────┬────────────────────────────────────────────┘
+                                 │
+                                 ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         RATE LIMITER (slowapi)                              │
+│                                                                             │
+│  2. Extract Rate Limit Key:                                                │
+│     ┌────────────────────────────────────────────────────┐                │
+│     │ get_user_id_or_ip(request):                        │                │
+│     │   1. Check request.state.user_id  → "user:abc123" │                │
+│     │   2. Check X-User-ID header       → "user:abc123" │                │
+│     │   3. Check user_id query param    → (if present)  │                │
+│     │   4. Fallback to IP               → "ip:1.2.3.4"  │                │
+│     └────────────────────────────────────────────────────┘                │
+│                                                                             │
+│  3. Check Storage (Memory/Redis):                                          │
+│     Key: "user:abc123:upload:10/minute"                                   │
+│     Current Count: 7 requests                                              │
+│     Limit: 10 requests/minute                                              │
+│     Last Reset: 2026-01-18 10:45:00                                        │
+└────────────────────────────────┬────────────────────────────────────────────┘
+                                 │
+                    ┌────────────┴────────────┐
+                    │                         │
+         Count < Limit                   Count >= Limit
+              (7 < 10)                      (10 >= 10)
+                    │                         │
+                    ▼                         ▼
+    ┌───────────────────────────┐   ┌────────────────────────────────┐
+    │  ✅ ALLOW REQUEST         │   │  ❌ BLOCK REQUEST              │
+    │                           │   │                                │
+    │  Increment Count: 7 → 8   │   │  Calculate retry_after:        │
+    │  Process Normally         │   │  Time until next window = 45s  │
+    └───────────┬───────────────┘   └────────────┬───────────────────┘
+                │                                 │
+                ▼                                 ▼
+    ┌───────────────────────────┐   ┌────────────────────────────────┐
+    │  200 OK                   │   │  429 TOO MANY REQUESTS         │
+    │                           │   │                                │
+    │  {                        │   │  Headers:                      │
+    │    "message": "Success",  │   │    Retry-After: 45             │
+    │    "documents": [...]     │   │    X-RateLimit-Reset: 170...   │
+    │  }                        │   │                                │
+    │                           │   │  Body:                         │
+    │                           │   │  {                             │
+    │                           │   │    "error": "Rate limit...",   │
+    │                           │   │    "detail": "Too many...",    │
+    │                           │   │    "retry_after": 45,          │
+    │                           │   │    "endpoint": "/api/upload"   │
+    │                           │   │  }                             │
+    └───────────┬───────────────┘   └────────────┬───────────────────┘
+                │                                 │
+                └────────────┬────────────────────┘
+                             │
+                             ▼
+                ┌────────────────────────────┐
+                │   RESPONSE TO CLIENT       │
+                └────────────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════════
+                          STORAGE STRUCTURE
+═══════════════════════════════════════════════════════════════════════════════
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  IN-MEMORY (Development)                                                    │
+│  ─────────────────────────────────────────────────────────────────────────  │
+│                                                                             │
+│  Python Dict:                                                               │
+│  {                                                                          │
+│    "user:abc123:upload:10/minute": {                                       │
+│      "count": 8,                                                            │
+│      "reset_at": 1704067200                                                │
+│    },                                                                       │
+│    "user:xyz789:chat:30/minute": {                                         │
+│      "count": 15,                                                           │
+│      "reset_at": 1704067180                                                │
+│    }                                                                        │
+│  }                                                                          │
+│                                                                             │
+│  ⚠️  WARNING: In-memory storage only works with single worker!             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  REDIS (Production)                                                         │
+│  ─────────────────────────────────────────────────────────────────────────  │
+│                                                                             │
+│  Redis Keys (with TTL):                                                     │
+│                                                                             │
+│  Key: "user:abc123:upload:10/minute"                                       │
+│  Value: 8                                                                   │
+│  TTL: 45 seconds                                                            │
+│                                                                             │
+│  Key: "user:xyz789:chat:30/minute"                                         │
+│  Value: 15                                                                  │
+│  TTL: 30 seconds                                                            │
+│                                                                             │
+│  ✅ Shared across multiple workers                                         │
+│  ✅ Automatic expiration with TTL                                          │
+│  ✅ High performance                                                        │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════════
+                     TIME WINDOW RESET BEHAVIOR
+═══════════════════════════════════════════════════════════════════════════════
+
+Timeline for 10/minute limit:
+
+10:00:00  Request 1   ✅ Count: 1
+10:00:15  Request 2   ✅ Count: 2
+10:00:30  Request 3   ✅ Count: 3
+    ...
+10:00:50  Request 10  ✅ Count: 10 (Limit reached)
+10:00:55  Request 11  ❌ Rate limited (retry_after: 5s)
+10:01:00  Window resets → Count: 0
+10:01:00  Request 12  ✅ Count: 1 (New window)
+
+
+═══════════════════════════════════════════════════════════════════════════════
+                    USER ISOLATION EXAMPLE
+═══════════════════════════════════════════════════════════════════════════════
+
+User A (X-User-ID: user_aaa):
+  Key: "user:user_aaa:upload:10/minute"
+  Count: 10/10 (Rate limited)
+
+User B (X-User-ID: user_bbb):
+  Key: "user:user_bbb:upload:10/minute"
+  Count: 3/10 (Still has quota)
+
+→ Users have SEPARATE rate limits (not shared)
+
+
+═══════════════════════════════════════════════════════════════════════════════
+                   SUBSCRIPTION TIER INTEGRATION (Future)
+═══════════════════════════════════════════════════════════════════════════════
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  Current Flow:                                                              │
+│  ────────────────────────────────────────────────────────────────────────   │
+│                                                                             │
+│  get_user_tier(user_id):                                                   │
+│    return "free"  # Everyone is free tier                                  │
+│                                                                             │
+│  get_rate_limit("upload", user_id):                                        │
+│    tier = get_user_tier(user_id)  # Returns "free"                        │
+│    return RATE_LIMITS[tier]["upload"]  # Returns "10/minute"              │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  Future Flow (with Stripe):                                                 │
+│  ────────────────────────────────────────────────────────────────────────   │
+│                                                                             │
+│  get_user_tier(user_id):                                                   │
+│    subscription = db.query(UserSubscription)                               │
+│                     .filter(user_id=user_id)                               │
+│                     .first()                                               │
+│                                                                             │
+│    if subscription and subscription.stripe_status == "active":             │
+│      return subscription.tier  # "pro" or "enterprise"                     │
+│                                                                             │
+│    return "free"                                                            │
+│                                                                             │
+│  get_rate_limit("upload", user_id):                                        │
+│    tier = get_user_tier(user_id)  # Could be "free", "pro", "enterprise" │
+│    return RATE_LIMITS[tier]["upload"]  # e.g., "50/minute" for pro       │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════════
+                        CLIENT RETRY LOGIC
+═══════════════════════════════════════════════════════════════════════════════
+
+Recommended retry pattern:
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  async function uploadWithRetry(file) {                                     │
+│    try {                                                                    │
+│      const response = await fetch('/api/upload', {                         │
+│        method: 'POST',                                                      │
+│        headers: { 'X-User-ID': userId },                                   │
+│        body: formData                                                       │
+│      });                                                                    │
+│                                                                             │
+│      if (response.status === 429) {                                        │
+│        const data = await response.json();                                 │
+│        console.log(`Rate limited. Retrying in ${data.retry_after}s`);     │
+│                                                                             │
+│        // Wait for retry_after seconds                                     │
+│        await new Promise(r => setTimeout(r, data.retry_after * 1000));    │
+│                                                                             │
+│        // Retry the request                                                │
+│        return uploadWithRetry(file);                                       │
+│      }                                                                      │
+│                                                                             │
+│      return await response.json();                                         │
+│    } catch (error) {                                                        │
+│      console.error('Upload failed:', error);                               │
+│    }                                                                        │
+│  }                                                                          │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════════
+                      ERROR HANDLING FLOW
+═══════════════════════════════════════════════════════════════════════════════
+
+Exception Raised → RateLimitExceeded
+        ↓
+Custom Handler: custom_rate_limit_handler(request, exc)
+        ↓
+Calculate retry_after from exception
+        ↓
+Build user-friendly error message based on endpoint
+        ↓
+Return JSONResponse:
+  - Status: 429
+  - Headers: Retry-After, X-RateLimit-Reset
+  - Body: {error, detail, retry_after, endpoint}
+
+
+╔════════════════════════════════════════════════════════════════════════════╗
+║                         END OF FLOW DIAGRAM                                ║
+╚════════════════════════════════════════════════════════════════════════════╝

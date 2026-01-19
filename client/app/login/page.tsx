@@ -1,66 +1,31 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { loginUser } from "@/services/auth";
+import { useAuth } from "@clerk/nextjs";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { isSignedIn, isLoaded } = useAuth();
 
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const handleLogin = async () => {
-    if (!username || !password) {
-      setError("Username and password are required");
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setError(null);
-
-      await loginUser(username, password);
-
+  useEffect(() => {
+    // If user is already signed in, redirect to chat
+    if (isLoaded && isSignedIn) {
       router.push("/chat");
-    } catch (err: any) {
-      setError(
-        err?.response?.data?.detail || "Invalid username or password"
-      );
-    } finally {
-      setLoading(false);
+    } else if (isLoaded && !isSignedIn) {
+      // Redirect to home page where they can sign in via header button
+      router.push("/");
     }
-  };
+  }, [isSignedIn, isLoaded, router]);
 
   return (
-    <div className="login-container">
-      <div className="login-box">
-        <h1>AI Chat Login</h1>
-
-        {error && <p className="error-text">{error}</p>}
-
-        <input
-          type="text"
-          placeholder="Username"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          disabled={loading}
-        />
-
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          disabled={loading}
-        />
-
-        <button onClick={handleLogin} disabled={loading}>
-          {loading ? "Logging in..." : "Login"}
-        </button>
-      </div>
+    <div style={{
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      minHeight: "calc(100vh - 100px)"
+    }}>
+      <p>Redirecting...</p>
     </div>
   );
 }

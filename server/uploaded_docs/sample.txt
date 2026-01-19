@@ -1,0 +1,18 @@
+RAG DocuChat Sample Document
+
+This is a sample document for testing the RAG (Retrieval-Augmented Generation) pipeline.
+
+Key Features:
+- Document upload and storage
+- Text embedding generation using HuggingFace transformers
+- FAISS vector database for efficient similarity search
+- Context retrieval for enhanced LLM responses
+
+Technology Stack:
+- FastAPI for backend API
+- LangChain for RAG orchestration
+- HuggingFace sentence-transformers for embeddings
+- FAISS for vector storage and retrieval
+- Groq/OpenAI for LLM inference
+
+The system allows users to upload documents, which are then processed into chunks, embedded into vector space, and stored in a FAISS index. When users ask questions, relevant context is retrieved from the vector store and provided to the LLM to generate accurate, context-aware responses.

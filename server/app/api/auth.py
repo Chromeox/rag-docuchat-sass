@@ -1,3 +1,11 @@
+"""
+DEPRECATED: This file contains old JWT-based authentication logic.
+We now use Clerk for authentication (see app/middleware/auth.py).
+
+This file is kept for reference only and should not be used in production.
+All authentication is handled by ClerkAuthMiddleware.
+"""
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
