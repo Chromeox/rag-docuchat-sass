@@ -29,9 +29,7 @@ app = FastAPI(title="DocuChat API Server")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, custom_rate_limit_handler)
 
-# @app.on_event("startup")
-# def startup():
-#     init_db()  # Tables already exist in production DB
+# Database tables already exist in production - no initialization needed
 
 # ---- CORS CONFIG ----
 # Get allowed origins from environment or use defaults
