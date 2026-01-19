@@ -72,9 +72,9 @@ export default function ChatPage() {
       e.preventDefault();
       e.stopPropagation();
       setIsDraggingOver(false);
-      // Open upload modal when files are dropped
+      // Upload files inline when dropped
       if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
-        setShowUploadModal(true);
+        handleInlineUpload(e.dataTransfer.files);
       }
     };
 
@@ -126,6 +126,78 @@ export default function ChatPage() {
         content: `Great! Your documents have been uploaded and are being processed. You can now ask me questions about your documents!`,
       },
     ]);
+  };
+
+  // Handle inline file upload (for drag-and-drop)
+  const handleInlineUpload = async (files: FileList) => {
+    if (!user?.id || files.length === 0) return;
+
+    const fileArray = Array.from(files);
+    const fileNames = fileArray.map(f => f.name).join(", ");
+
+    // Add upload progress message to chat
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "assistant",
+        content: `📎 Uploading ${fileArray.length} ${fileArray.length === 1 ? "file" : "files"}: ${fileNames}...`,
+      },
+    ]);
+
+    try {
+      const formData = new FormData();
+      fileArray.forEach(file => formData.append("files", file));
+
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const token = await getToken();
+
+      const response = await fetch(`${apiUrl}/api/upload`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error("Upload failed");
+      }
+
+      const data = await response.json();
+
+      // Trigger ingestion
+      const ingestResponse = await fetch(`${apiUrl}/api/ingest`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+      });
+
+      if (!ingestResponse.ok) {
+        throw new Error("Ingestion failed");
+      }
+
+      // Add success message
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: `✓ Successfully uploaded and processed ${fileArray.length} ${fileArray.length === 1 ? "file" : "files"}! You can now ask me questions about your documents.`,
+        },
+      ]);
+
+      setHasDocuments(true);
+    } catch (error) {
+      console.error("Upload error:", error);
+      // Add error message
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: `❌ Upload failed. Please try again or use the 📎 button to upload manually.`,
+        },
+      ]);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -281,13 +353,7 @@ export default function ChatPage() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 bg-gradient-to-br from-green-500/20 via-emerald-500/20 to-teal-500/20 backdrop-blur-sm border-4 border-dashed border-green-500 flex items-center justify-center"
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={(e) => {
-            e.preventDefault();
-            setIsDraggingOver(false);
-            setShowUploadModal(true);
-          }}
+          className="fixed inset-0 z-50 bg-gradient-to-br from-green-500/20 via-emerald-500/20 to-teal-500/20 backdrop-blur-sm border-4 border-dashed border-green-500 flex items-center justify-center pointer-events-none"
         >
           <div className="text-center bg-white/95 rounded-2xl p-12 shadow-2xl border-2 border-green-500">
             <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
