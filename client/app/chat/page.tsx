@@ -413,7 +413,7 @@ export default function ChatPage() {
         }}
       />
 
-      <div className="flex h-screen overflow-hidden">
+      <div className="flex h-full overflow-hidden">
       {/* Conversation Sidebar */}
       {user && (
         <ConversationSidebar
@@ -426,7 +426,7 @@ export default function ChatPage() {
       )}
 
       {/* Main chat container */}
-      <div className="flex-1 flex flex-col min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50">
+      <div className="flex-1 flex flex-col h-full bg-gradient-to-br from-slate-50 via-white to-blue-50">
       {/* Header with navigation */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4 max-w-4xl">
