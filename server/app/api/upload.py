@@ -31,7 +31,13 @@ ALLOWED_EXTENSIONS = {
 }
 
 # Ensure upload directory exists
-UPLOAD_DIR.mkdir(exist_ok=True)
+print(f"[UPLOAD] UPLOAD_DIR configured as: {UPLOAD_DIR}")
+print(f"[UPLOAD] RAILWAY_ENVIRONMENT: {os.getenv('RAILWAY_ENVIRONMENT')}")
+try:
+    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    print(f"[UPLOAD] Directory created/exists: {UPLOAD_DIR.exists()}")
+except Exception as e:
+    print(f"[UPLOAD] ERROR creating directory: {e}")
 
 
 def get_db():
