@@ -62,17 +62,21 @@ async def trigger_ingestion(
     """
     # Get authenticated user_id from middleware
     user_id = request.state.user_id
+    print(f"[INGEST] Starting ingestion for user: {user_id}")
 
     try:
         doc_repo = DocumentRepository(db)
 
         # Get pending documents for this user
         pending_docs = doc_repo.get_by_user_and_status(user_id, "pending")
+        print(f"[INGEST] Found {len(pending_docs) if pending_docs else 0} pending documents")
 
         if not pending_docs:
             # Check if user has any documents at all
             all_docs = doc_repo.get_by_user(user_id)
+            print(f"[INGEST] No pending docs. Total docs for user: {len(all_docs) if all_docs else 0}")
             if not all_docs:
+                print(f"[INGEST] ERROR: No documents found for user {user_id}")
                 raise HTTPException(
                     status_code=404,
                     detail=f"No documents found for user {user_id}"
@@ -88,7 +92,9 @@ async def trigger_ingestion(
                 )
 
         # Run ingestion for this user
+        print(f"[INGEST] Running ingestion for {len(pending_docs)} documents...")
         result = ingest_docs(user_id=user_id)
+        print(f"[INGEST] Ingestion complete: {result}")
 
         # Update document statuses to "ingested"
         for doc in pending_docs:

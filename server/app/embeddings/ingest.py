@@ -14,8 +14,16 @@ from langchain_core.documents import Document
 from app.core.embedding_factory import get_embeddings
 
 
-UPLOADED_DOCS_PATH = "uploaded_docs"
-VECTOR_STORE_BASE = "vector_store"
+# Use /tmp for Railway (ephemeral but writable) - must match upload.py paths
+if os.getenv("RAILWAY_ENVIRONMENT"):
+    UPLOADED_DOCS_PATH = "/tmp/uploaded_docs"
+    VECTOR_STORE_BASE = "/tmp/vector_store"
+else:
+    UPLOADED_DOCS_PATH = "uploaded_docs"
+    VECTOR_STORE_BASE = "vector_store"
+
+print(f"[INGEST] UPLOADED_DOCS_PATH: {UPLOADED_DOCS_PATH}")
+print(f"[INGEST] VECTOR_STORE_BASE: {VECTOR_STORE_BASE}")
 
 
 def load_document(file_path: Path, user_id: Optional[str] = None) -> List[Document]:

@@ -1,10 +1,15 @@
+import os
 from typing import Optional, Dict
 from langchain_community.vectorstores import FAISS
 from pathlib import Path
 from app.core.embedding_factory import get_embeddings
 
 
-VECTOR_STORE_BASE = Path("vector_store")
+# Use /tmp for Railway (ephemeral but writable) - must match ingest.py paths
+if os.getenv("RAILWAY_ENVIRONMENT"):
+    VECTOR_STORE_BASE = Path("/tmp/vector_store")
+else:
+    VECTOR_STORE_BASE = Path("vector_store")
 
 # Cache for vector databases (user_id -> FAISS instance)
 _db_cache: Dict[str, FAISS] = {}
