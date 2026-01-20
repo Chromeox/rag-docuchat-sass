@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 from typing import List, Optional
+import pdfplumber
 from langchain_community.document_loaders import (
     DirectoryLoader,
     TextLoader,
@@ -26,9 +27,46 @@ print(f"[INGEST] UPLOADED_DOCS_PATH: {UPLOADED_DOCS_PATH}")
 print(f"[INGEST] VECTOR_STORE_BASE: {VECTOR_STORE_BASE}")
 
 
+def load_pdf_with_pdfplumber(file_path: Path) -> List[Document]:
+    """
+    Fallback PDF loader using pdfplumber for problematic PDFs.
+
+    Args:
+        file_path: Path to the PDF file
+
+    Returns:
+        List of Document objects extracted from the PDF
+    """
+    docs = []
+    try:
+        with pdfplumber.open(str(file_path)) as pdf:
+            for page_num, page in enumerate(pdf.pages):
+                text = page.extract_text()
+                if text and text.strip():
+                    doc = Document(
+                        page_content=text,
+                        metadata={
+                            "source": str(file_path),
+                            "page": page_num,
+                            "loader": "pdfplumber_fallback"
+                        }
+                    )
+                    docs.append(doc)
+
+        if docs:
+            print(f"    📄 pdfplumber extracted {len(docs)} page(s)")
+        return docs
+    except Exception as e:
+        print(f"    ⚠️  pdfplumber also failed: {str(e)}")
+        return []
+
+
 def load_document(file_path: Path, user_id: Optional[str] = None) -> List[Document]:
     """
     Load a single document using the appropriate loader based on file extension.
+
+    For PDFs, attempts PyPDFLoader first, then falls back to pdfplumber if that fails
+    (handles problematic PDFs with bbox errors or malformed metadata).
 
     Args:
         file_path: Path to the document file
@@ -41,18 +79,34 @@ def load_document(file_path: Path, user_id: Optional[str] = None) -> List[Docume
 
     try:
         if file_ext == '.pdf':
-            loader = PyPDFLoader(str(file_path))
+            # Try PyPDFLoader first (faster and more feature-rich)
+            try:
+                loader = PyPDFLoader(str(file_path))
+                docs = loader.load()
+                if docs:
+                    print(f"    📄 PyPDFLoader extracted {len(docs)} page(s)")
+            except Exception as pdf_error:
+                # PyPDFLoader failed - try pdfplumber as fallback
+                print(f"    ⚠️  PyPDFLoader failed ({type(pdf_error).__name__}: {str(pdf_error)[:100]})")
+                print(f"    🔄 Trying pdfplumber fallback...")
+                docs = load_pdf_with_pdfplumber(file_path)
+
+                if not docs:
+                    print(f"    ❌ All PDF loaders failed for {file_path.name}")
+                    return []
         elif file_ext in ['.docx', '.doc']:
             loader = UnstructuredWordDocumentLoader(str(file_path))
+            docs = loader.load()
         elif file_ext == '.csv':
             loader = CSVLoader(str(file_path))
+            docs = loader.load()
         elif file_ext in ['.txt', '.md', '.json', '.py', '.js', '.jsx', '.ts', '.tsx', '.html', '.css']:
             loader = TextLoader(str(file_path))
+            docs = loader.load()
         else:
             # Try TextLoader as fallback
             loader = TextLoader(str(file_path))
-
-        docs = loader.load()
+            docs = loader.load()
 
         # Add user_id to metadata if provided
         if user_id and docs:
