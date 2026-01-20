@@ -15,7 +15,9 @@ from app.utils.file_validator import validate_file_comprehensive
 router = APIRouter()
 
 # Configuration
-UPLOAD_DIR = Path(__file__).parent.parent.parent / "uploaded_docs"
+# Use /tmp for Railway (ephemeral but writable)
+# TODO: Switch to S3/R2 for production persistent storage
+UPLOAD_DIR = Path("/tmp/uploaded_docs") if os.getenv("RAILWAY_ENVIRONMENT") else Path(__file__).parent.parent.parent / "uploaded_docs"
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB in bytes
 ALLOWED_EXTENSIONS = {
     # Documents
