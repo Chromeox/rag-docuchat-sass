@@ -79,7 +79,13 @@ def get_file_mime_type(file_path: Path) -> str:
     Returns:
         MIME type string
     """
-    mime_type, _ = mimetypes.guess_type(str(file_path))
+    # Handle temp files: if file ends with .tmp, use the real filename for MIME detection
+    # e.g., "file.pdf.tmp" -> guess MIME from "file.pdf"
+    if file_path.suffix.lower() == '.tmp':
+        real_filename = file_path.stem  # "file.pdf.tmp" -> "file.pdf"
+        mime_type, _ = mimetypes.guess_type(real_filename)
+    else:
+        mime_type, _ = mimetypes.guess_type(str(file_path))
     return mime_type or 'application/octet-stream'
 
 
@@ -93,7 +99,15 @@ def validate_mime_type(file_path: Path) -> None:
     Raises:
         FileValidationError: If MIME type doesn't match extension
     """
-    extension = file_path.suffix.lower()
+    # Handle temp files: if file ends with .tmp, get the real extension
+    # e.g., "file.pdf.tmp" -> ".pdf"
+    if file_path.suffix.lower() == '.tmp':
+        # Get the stem (filename without .tmp) and extract its suffix
+        real_path = Path(file_path.stem)  # "file.pdf.tmp" -> "file.pdf"
+        extension = real_path.suffix.lower()  # ".pdf"
+        print(f"[VALIDATE] Temp file detected, using real extension: {extension}")
+    else:
+        extension = file_path.suffix.lower()
 
     if extension not in MIME_TYPE_MAPPING:
         raise FileValidationError(f"File extension '{extension}' not in allowed list")
