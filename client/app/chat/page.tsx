@@ -130,7 +130,21 @@ export default function ChatPage() {
 
   // Handle inline file upload (for drag-and-drop)
   const handleInlineUpload = async (files: FileList) => {
-    if (!user?.id || files.length === 0) return;
+    console.log("[UPLOAD] handleInlineUpload called", { userId: user?.id, fileCount: files.length });
+
+    if (!user?.id) {
+      console.error("[UPLOAD] User not authenticated");
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: "❌ Please wait for authentication to complete before uploading." },
+      ]);
+      return;
+    }
+
+    if (files.length === 0) {
+      console.error("[UPLOAD] No files selected");
+      return;
+    }
 
     const fileArray = Array.from(files);
     const fileNames = fileArray.map(f => f.name).join(", ");
@@ -149,8 +163,16 @@ export default function ChatPage() {
       fileArray.forEach(file => formData.append("files", file));
 
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-      const token = await getToken();
+      console.log("[UPLOAD] API URL:", apiUrl);
 
+      const token = await getToken();
+      console.log("[UPLOAD] Token obtained:", !!token);
+
+      if (!token) {
+        throw new Error("Failed to get authentication token");
+      }
+
+      console.log("[UPLOAD] Sending upload request...");
       const response = await fetch(`${apiUrl}/api/upload`, {
         method: "POST",
         headers: {
@@ -159,13 +181,19 @@ export default function ChatPage() {
         body: formData,
       });
 
+      console.log("[UPLOAD] Upload response status:", response.status);
+
       if (!response.ok) {
-        throw new Error("Upload failed");
+        const errorData = await response.json().catch(() => ({}));
+        console.error("[UPLOAD] Upload failed:", errorData);
+        throw new Error(errorData.detail || `Upload failed with status ${response.status}`);
       }
 
       const data = await response.json();
+      console.log("[UPLOAD] Upload success:", data);
 
       // Trigger ingestion
+      console.log("[INGEST] Triggering ingestion...");
       const ingestResponse = await fetch(`${apiUrl}/api/ingest`, {
         method: "POST",
         headers: {
@@ -173,9 +201,16 @@ export default function ChatPage() {
         },
       });
 
+      console.log("[INGEST] Ingest response status:", ingestResponse.status);
+
       if (!ingestResponse.ok) {
-        throw new Error("Ingestion failed");
+        const errorData = await ingestResponse.json().catch(() => ({}));
+        console.error("[INGEST] Ingestion failed:", errorData);
+        throw new Error(errorData.detail || `Ingestion failed with status ${ingestResponse.status}`);
       }
+
+      const ingestData = await ingestResponse.json();
+      console.log("[INGEST] Ingestion success:", ingestData);
 
       // Add success message
       setMessages((prev) => [
@@ -188,13 +223,14 @@ export default function ChatPage() {
 
       setHasDocuments(true);
     } catch (error) {
-      console.error("Upload error:", error);
-      // Add error message
+      console.error("[UPLOAD] Error:", error);
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      // Add error message with details
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          content: `❌ Upload failed. Please try again or use the 📎 button to upload manually.`,
+          content: `❌ Upload failed: ${errorMessage}. Check browser console for details.`,
         },
       ]);
     }
