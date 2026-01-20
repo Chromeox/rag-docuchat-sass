@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
@@ -37,6 +37,9 @@ export default function ChatPage() {
   const [showDocumentManager, setShowDocumentManager] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState<number | null>(null);
 
+  // Ref to hold the latest upload handler (avoids stale closure in drag-drop effect)
+  const handleInlineUploadRef = useRef<(files: FileList) => Promise<void>>();
+
   useEffect(() => {
     // Redirect to home if not signed in
     if (isLoaded && !isSignedIn) {
@@ -44,7 +47,7 @@ export default function ChatPage() {
     }
   }, [isSignedIn, isLoaded, router]);
 
-  // Full-page drag & drop handlers
+  // Full-page drag & drop handlers - use ref to avoid stale closure
   useEffect(() => {
     const handleDragEnter = (e: DragEvent) => {
       e.preventDefault();
@@ -72,9 +75,10 @@ export default function ChatPage() {
       e.preventDefault();
       e.stopPropagation();
       setIsDraggingOver(false);
-      // Upload files inline when dropped
+      // Upload files inline when dropped - use ref to get latest handler
       if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
-        handleInlineUpload(e.dataTransfer.files);
+        console.log("[DRAG-DROP] Files dropped, calling handleInlineUploadRef.current");
+        handleInlineUploadRef.current?.(e.dataTransfer.files);
       }
     };
 
@@ -129,11 +133,11 @@ export default function ChatPage() {
   };
 
   // Handle inline file upload (for drag-and-drop)
-  const handleInlineUpload = async (files: FileList) => {
-    console.log("[UPLOAD] handleInlineUpload called", { userId: user?.id, fileCount: files.length });
+  const handleInlineUpload = useCallback(async (files: FileList) => {
+    console.log("[UPLOAD] handleInlineUpload called", { userId: user?.id, fileCount: files.length, isLoaded, isSignedIn });
 
     if (!user?.id) {
-      console.error("[UPLOAD] User not authenticated");
+      console.error("[UPLOAD] User not authenticated - user:", user, "isLoaded:", isLoaded, "isSignedIn:", isSignedIn);
       setMessages((prev) => [
         ...prev,
         { role: "assistant", content: "❌ Please wait for authentication to complete before uploading." },
@@ -234,7 +238,12 @@ export default function ChatPage() {
         },
       ]);
     }
-  };
+  }, [user?.id, getToken, isLoaded, isSignedIn]);
+
+  // Keep the ref updated with the latest handleInlineUpload (fixes stale closure)
+  useEffect(() => {
+    handleInlineUploadRef.current = handleInlineUpload;
+  }, [handleInlineUpload]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
