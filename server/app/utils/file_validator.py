@@ -258,35 +258,48 @@ def validate_file_comprehensive(file_path: Path, max_size: int) -> None:
         HTTPException: For HTTP-friendly error responses
     """
     try:
+        print(f"[VALIDATE] Starting validation for: {file_path.name}")
+
         # Check file exists
         if not file_path.exists():
             raise FileValidationError("File does not exist")
+        print(f"[VALIDATE] File exists: OK")
 
         if not file_path.is_file():
             raise FileValidationError("Path is not a file")
+        print(f"[VALIDATE] Is file: OK")
 
         # Validate file size
         validate_file_size(file_path, max_size)
+        print(f"[VALIDATE] File size: OK")
 
         # Validate MIME type
         validate_mime_type(file_path)
+        print(f"[VALIDATE] MIME type: OK")
 
         # Check for executable content
         check_executable_content(file_path)
+        print(f"[VALIDATE] Executable check: OK")
 
         # Check for zip bombs
         check_zip_bomb(file_path)
+        print(f"[VALIDATE] Zip bomb check: OK")
 
         # Scan PDF content
         if file_path.suffix.lower() == '.pdf':
             scan_pdf_content(file_path)
+            print(f"[VALIDATE] PDF scan: OK")
+
+        print(f"[VALIDATE] All validations passed for: {file_path.name}")
 
     except FileValidationError as e:
+        print(f"[VALIDATE] FAILED: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"File validation failed: {str(e)}"
         )
     except Exception as e:
+        print(f"[VALIDATE] ERROR: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"File validation error: {str(e)}"

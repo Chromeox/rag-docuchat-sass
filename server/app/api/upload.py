@@ -74,9 +74,13 @@ def validate_file(file: UploadFile) -> None:
     Raises:
         HTTPException: If validation fails
     """
+    print(f"[UPLOAD] Validating file: {file.filename}")
+
     # Check file extension
     file_ext = Path(file.filename).suffix.lower()
+    print(f"[UPLOAD] File extension: {file_ext}")
     if file_ext not in ALLOWED_EXTENSIONS:
+        print(f"[UPLOAD] REJECTED: Extension '{file_ext}' not allowed")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"File type '{file_ext}' not allowed. Allowed types: {', '.join(ALLOWED_EXTENSIONS)}"
@@ -86,13 +90,17 @@ def validate_file(file: UploadFile) -> None:
     file.file.seek(0, 2)  # Move to end of file
     file_size = file.file.tell()
     file.file.seek(0)  # Reset to beginning
+    print(f"[UPLOAD] File size: {file_size / (1024 * 1024):.2f}MB")
 
     if file_size > MAX_FILE_SIZE:
         max_mb = MAX_FILE_SIZE / (1024 * 1024)
+        print(f"[UPLOAD] REJECTED: File too large ({file_size / (1024 * 1024):.2f}MB > {max_mb}MB)")
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             detail=f"File size ({file_size / (1024 * 1024):.2f}MB) exceeds maximum allowed size ({max_mb}MB)"
         )
+
+    print(f"[UPLOAD] Basic validation passed for: {file.filename}")
 
 
 def save_file(
