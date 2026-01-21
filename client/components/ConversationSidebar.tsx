@@ -134,41 +134,6 @@ export function ConversationSidebar({
     );
   }, [conversations, searchQuery]);
 
-  // Icon button with tooltip
-  const IconButton = ({
-    icon: Icon,
-    label,
-    shortcut,
-    onClick,
-    isActive = false,
-  }: {
-    icon: React.ElementType;
-    label: string;
-    shortcut?: string;
-    onClick: () => void;
-    isActive?: boolean;
-  }) => (
-    <div className="relative group">
-      <button
-        onClick={onClick}
-        className={`w-10 h-10 flex items-center justify-center rounded-lg transition-colors ${
-          isActive
-            ? "bg-slate-200 text-slate-900"
-            : "text-slate-500 hover:bg-slate-100 hover:text-slate-900"
-        }`}
-      >
-        <Icon className="w-5 h-5" />
-      </button>
-      {/* Tooltip */}
-      <div className="absolute left-12 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center gap-2 px-3 py-1.5 bg-slate-900 text-white text-sm rounded-lg whitespace-nowrap z-50 shadow-lg">
-        {label}
-        {shortcut && (
-          <span className="text-slate-400 text-xs font-mono">{shortcut}</span>
-        )}
-      </div>
-    </div>
-  );
-
   // Mobile toggle button
   const MobileToggle = () => (
     <button
@@ -183,45 +148,102 @@ export function ConversationSidebar({
     </button>
   );
 
-  // Icon strip (always visible when expanded or collapsed)
-  const IconStrip = () => (
-    <div className="flex flex-col items-center py-3 px-2 border-r border-slate-200 bg-slate-50 h-full">
+  // Collapsed sidebar - just icons with tooltips
+  const CollapsedSidebar = () => (
+    <div className="flex flex-col items-center py-3 px-2 bg-white border-r border-slate-200 h-full w-14">
       <div className="space-y-1">
-        <IconButton
-          icon={isExpanded ? PanelLeftClose : PanelLeft}
-          label={isExpanded ? "Close sidebar" : "Open sidebar"}
-          shortcut={`${modKey}+\\`}
-          onClick={() => setIsExpanded(!isExpanded)}
-        />
-        <IconButton
-          icon={SquarePen}
-          label="New chat"
-          shortcut={`${modKey}+N`}
-          onClick={() => {
-            onNewConversation();
-            setIsMobileOpen(false);
-          }}
-        />
-        <IconButton
-          icon={Search}
-          label="Search chats"
-          shortcut={`${modKey}+K`}
-          onClick={() => {
-            setShowSearch(true);
-            setIsExpanded(true);
-          }}
-          isActive={showSearch}
-        />
+        {/* Toggle - expand */}
+        <div className="relative group">
+          <button
+            onClick={() => setIsExpanded(true)}
+            className="w-10 h-10 flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+          >
+            <PanelLeft className="w-5 h-5" />
+          </button>
+          <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center gap-2 px-3 py-1.5 bg-slate-900 text-white text-sm rounded-lg whitespace-nowrap z-[100] shadow-lg">
+            Open sidebar
+            <span className="text-slate-400 text-xs font-mono">{modKey}+\</span>
+          </div>
+        </div>
+
+        {/* New chat */}
+        <div className="relative group">
+          <button
+            onClick={() => {
+              onNewConversation();
+              setIsMobileOpen(false);
+            }}
+            className="w-10 h-10 flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+          >
+            <SquarePen className="w-5 h-5" />
+          </button>
+          <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center gap-2 px-3 py-1.5 bg-slate-900 text-white text-sm rounded-lg whitespace-nowrap z-[100] shadow-lg">
+            New chat
+            <span className="text-slate-400 text-xs font-mono">{modKey}+N</span>
+          </div>
+        </div>
+
+        {/* Search */}
+        <div className="relative group">
+          <button
+            onClick={() => {
+              setShowSearch(true);
+              setIsExpanded(true);
+            }}
+            className="w-10 h-10 flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+          >
+            <Search className="w-5 h-5" />
+          </button>
+          <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center gap-2 px-3 py-1.5 bg-slate-900 text-white text-sm rounded-lg whitespace-nowrap z-[100] shadow-lg">
+            Search chats
+            <span className="text-slate-400 text-xs font-mono">{modKey}+K</span>
+          </div>
+        </div>
       </div>
     </div>
   );
 
-  // Conversation list panel
-  const ConversationPanel = () => (
-    <div className="flex-1 flex flex-col h-full bg-white overflow-hidden">
-      {/* Header */}
-      <div className="px-4 py-3 border-b border-slate-200">
-        <h2 className="font-semibold text-slate-900 text-sm">Chats</h2>
+  // Expanded sidebar - menu items with text labels + conversation list
+  const ExpandedSidebar = () => (
+    <div className="flex flex-col h-full bg-white border-r border-slate-200 w-72">
+      {/* Menu items */}
+      <div className="p-3 space-y-1">
+        {/* Toggle - collapse */}
+        <button
+          onClick={() => setIsExpanded(false)}
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors text-sm"
+        >
+          <PanelLeftClose className="w-5 h-5 flex-shrink-0" />
+          <span className="flex-1 text-left">Close sidebar</span>
+          <span className="text-slate-400 text-xs font-mono">{modKey}+\</span>
+        </button>
+
+        {/* New chat */}
+        <button
+          onClick={() => {
+            onNewConversation();
+            setIsMobileOpen(false);
+          }}
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors text-sm"
+        >
+          <SquarePen className="w-5 h-5 flex-shrink-0" />
+          <span className="flex-1 text-left">New chat</span>
+          <span className="text-slate-400 text-xs font-mono">{modKey}+N</span>
+        </button>
+
+        {/* Search chats */}
+        <button
+          onClick={() => setShowSearch(!showSearch)}
+          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm ${
+            showSearch
+              ? "bg-slate-100 text-slate-900"
+              : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+          }`}
+        >
+          <Search className="w-5 h-5 flex-shrink-0" />
+          <span className="flex-1 text-left">Search chats</span>
+          <span className="text-slate-400 text-xs font-mono">{modKey}+K</span>
+        </button>
       </div>
 
       {/* Search input */}
@@ -231,35 +253,43 @@ export function ConversationSidebar({
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden border-b border-slate-200"
+            className="overflow-hidden px-3 pb-3"
           >
-            <div className="px-3 py-2">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search chats..."
-                  autoFocus
-                  className="w-full pl-9 pr-8 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400"
-                />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery("")}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-100 rounded"
-                  >
-                    <X className="w-3 h-3 text-slate-400" />
-                  </button>
-                )}
-              </div>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search chats..."
+                autoFocus
+                className="w-full pl-9 pr-8 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400 bg-slate-50"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-200 rounded"
+                >
+                  <X className="w-3 h-3 text-slate-400" />
+                </button>
+              )}
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
+      {/* Divider */}
+      <div className="border-t border-slate-200 mx-3" />
+
+      {/* Your chats section */}
+      <div className="px-3 pt-3 pb-2">
+        <h3 className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+          Your chats
+        </h3>
+      </div>
+
       {/* Conversations list */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar">
+      <div className="flex-1 overflow-y-auto custom-scrollbar px-2">
         {isLoading ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="w-6 h-6 text-slate-400 animate-spin" />
@@ -285,7 +315,7 @@ export function ConversationSidebar({
             )}
           </div>
         ) : (
-          <div className="py-2 px-2">
+          <div className="space-y-1 pb-4">
             {filteredConversations.map((conversation) => (
               <ConversationItem
                 key={conversation.id}
@@ -310,27 +340,31 @@ export function ConversationSidebar({
       <MobileToggle />
 
       {/* Desktop sidebar */}
-      <motion.aside
-        initial={false}
-        animate={{ width: isExpanded ? 320 : 56 }}
-        transition={{ duration: 0.2, ease: "easeInOut" }}
-        className="hidden lg:flex h-screen sticky top-0 border-r border-slate-200"
-      >
-        <IconStrip />
-        <AnimatePresence>
-          {isExpanded && (
+      <aside className="hidden lg:block h-screen sticky top-0">
+        <AnimatePresence mode="wait">
+          {isExpanded ? (
             <motion.div
-              initial={{ width: 0, opacity: 0 }}
-              animate={{ width: 264, opacity: 1 }}
-              exit={{ width: 0, opacity: 0 }}
-              transition={{ duration: 0.2, ease: "easeInOut" }}
-              className="overflow-hidden"
+              key="expanded"
+              initial={{ width: 56, opacity: 0 }}
+              animate={{ width: 288, opacity: 1 }}
+              exit={{ width: 56, opacity: 0 }}
+              transition={{ duration: 0.15, ease: "easeOut" }}
             >
-              <ConversationPanel />
+              <ExpandedSidebar />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="collapsed"
+              initial={{ width: 288, opacity: 0 }}
+              animate={{ width: 56, opacity: 1 }}
+              exit={{ width: 288, opacity: 0 }}
+              transition={{ duration: 0.15, ease: "easeOut" }}
+            >
+              <CollapsedSidebar />
             </motion.div>
           )}
         </AnimatePresence>
-      </motion.aside>
+      </aside>
 
       {/* Mobile drawer */}
       <AnimatePresence>
@@ -347,14 +381,13 @@ export function ConversationSidebar({
 
             {/* Drawer */}
             <motion.aside
-              initial={{ x: -320 }}
+              initial={{ x: -288 }}
               animate={{ x: 0 }}
-              exit={{ x: -320 }}
+              exit={{ x: -288 }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="lg:hidden fixed top-0 left-0 h-screen w-[320px] z-50 shadow-2xl flex"
+              className="lg:hidden fixed top-0 left-0 h-screen z-50 shadow-2xl"
             >
-              <IconStrip />
-              <ConversationPanel />
+              <ExpandedSidebar />
             </motion.aside>
           </>
         )}
