@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, FileText, Loader2, Upload as UploadIcon } from "lucide-react";
+import { X, FileText, Loader2, Upload as UploadIcon, Trash2 } from "lucide-react";
 import { DocumentList, Document } from "./DocumentList";
+import { ConfirmModal } from "./ConfirmModal";
 import { useAuth, useUser } from "@clerk/nextjs";
 
 interface DocumentManagerProps {
@@ -21,6 +22,8 @@ export function DocumentManager({
   const { getToken } = useAuth();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
+  const [showClearAllModal, setShowClearAllModal] = useState(false);
   const [ingestStatus, setIngestStatus] = useState<string>("not_ready");
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -144,6 +147,36 @@ export function DocumentManager({
     }
   };
 
+  const handleClearAll = async () => {
+    if (!user?.id) return;
+
+    setIsClearing(true);
+    setShowClearAllModal(false);
+    try {
+      const response = await fetch(`${apiUrl}/api/documents/clear-all`, {
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${await getToken()}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setDocuments([]);
+        await checkIngestStatus();
+        alert(`Successfully cleared ${data.deleted_count} document(s)`);
+      } else {
+        const error = await response.json();
+        alert(`Clear failed: ${error.detail}`);
+      }
+    } catch (error) {
+      console.error("Failed to clear documents:", error);
+      alert("Failed to clear documents. Please try again.");
+    } finally {
+      setIsClearing(false);
+    }
+  };
+
   useEffect(() => {
     if (isOpen && user?.id) {
       fetchDocuments();
@@ -233,7 +266,7 @@ export function DocumentManager({
                   {pendingCount > 0 && (
                     <button
                       onClick={handleIngestAll}
-                      disabled={isLoading}
+                      disabled={isLoading || isClearing}
                       className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isLoading ? (
@@ -245,6 +278,25 @@ export function DocumentManager({
                         <>
                           <UploadIcon className="w-4 h-4" />
                           Ingest All ({pendingCount})
+                        </>
+                      )}
+                    </button>
+                  )}
+                  {documents.length > 0 && (
+                    <button
+                      onClick={() => setShowClearAllModal(true)}
+                      disabled={isLoading || isClearing}
+                      className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isClearing ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Clearing...
+                        </>
+                      ) : (
+                        <>
+                          <Trash2 className="w-4 h-4" />
+                          Clear All
                         </>
                       )}
                     </button>
@@ -280,6 +332,18 @@ export function DocumentManager({
           </motion.div>
         </>
       )}
+
+      {/* Clear All Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showClearAllModal}
+        onClose={() => setShowClearAllModal(false)}
+        onConfirm={handleClearAll}
+        title="Clear All Documents"
+        message={`Are you sure you want to delete all ${documents.length} document(s)? This will permanently remove all your documents from the knowledge base and cannot be undone.`}
+        confirmText="Clear All"
+        variant="danger"
+        isLoading={isClearing}
+      />
     </AnimatePresence>
   );
 }

@@ -92,3 +92,9 @@ class DocumentRepository:
             .filter(Document.user_id == user_id, Document.status == status)
             .count()
         )
+
+    def delete_all_by_user(self, user_id: str) -> int:
+        """Delete all documents for a user. Returns count of deleted documents."""
+        count = self.db.query(Document).filter(Document.user_id == user_id).delete()
+        self.db.commit()
+        return count

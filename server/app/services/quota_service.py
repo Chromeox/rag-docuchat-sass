@@ -278,3 +278,16 @@ class QuotaService:
         quota = self.get_or_create_quota(user_id)
         quota.tier = new_tier
         self.db.commit()
+
+    def reset_user_quota(self, user_id: str) -> None:
+        """
+        Reset document count and storage usage to zero.
+        Called when all documents are cleared.
+
+        Args:
+            user_id: User's Clerk ID
+        """
+        quota = self.get_or_create_quota(user_id)
+        quota.document_count = 0
+        quota.total_storage_bytes = 0
+        self.db.commit()
