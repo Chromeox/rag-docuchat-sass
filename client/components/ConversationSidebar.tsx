@@ -201,9 +201,9 @@ export function ConversationSidebar({
         </div>
       </div>
 
-      {/* User Profile - Bottom */}
+      {/* User Profile - Fixed Bottom */}
       {user && (
-        <div className="relative group mt-auto pt-3 border-t border-slate-200">
+        <div className="relative group flex-shrink-0 pt-3 border-t border-slate-200 bg-white">
           <button className="w-10 h-10 rounded-full overflow-hidden ring-2 ring-transparent hover:ring-slate-300 transition-all">
             {user.imageUrl ? (
               <img
@@ -355,9 +355,9 @@ export function ConversationSidebar({
         )}
       </div>
 
-      {/* User Profile - Bottom */}
+      {/* User Profile - Fixed Bottom */}
       {user && (
-        <div className="p-3 border-t border-slate-200 mt-auto">
+        <div className="flex-shrink-0 p-3 border-t border-slate-200 bg-white">
           <div className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer">
             <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
               {user.imageUrl ? (
