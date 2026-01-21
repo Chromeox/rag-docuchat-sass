@@ -151,7 +151,7 @@ export function ConversationSidebar({
   // Collapsed sidebar - just icons with tooltips
   const CollapsedSidebar = () => (
     <div className="flex flex-col items-center py-3 px-2 bg-white border-r border-slate-200 h-full w-14">
-      <div className="space-y-1">
+      <div className="space-y-1 flex-1">
         {/* Toggle - expand */}
         <div className="relative group">
           <button
@@ -200,6 +200,28 @@ export function ConversationSidebar({
           </div>
         </div>
       </div>
+
+      {/* User Profile - Bottom */}
+      {user && (
+        <div className="relative group mt-auto pt-3 border-t border-slate-200">
+          <button className="w-10 h-10 rounded-full overflow-hidden ring-2 ring-transparent hover:ring-slate-300 transition-all">
+            {user.imageUrl ? (
+              <img
+                src={user.imageUrl}
+                alt={user.fullName || "User"}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-sm font-medium">
+                {user.firstName?.[0] || user.emailAddresses?.[0]?.emailAddress?.[0]?.toUpperCase() || "U"}
+              </div>
+            )}
+          </button>
+          <div className="absolute left-full ml-2 bottom-0 hidden group-hover:block px-3 py-1.5 bg-slate-900 text-white text-sm rounded-lg whitespace-nowrap z-[100] shadow-lg">
+            {user.fullName || user.emailAddresses?.[0]?.emailAddress || "Account"}
+          </div>
+        </div>
+      )}
     </div>
   );
 
@@ -332,6 +354,35 @@ export function ConversationSidebar({
           </div>
         )}
       </div>
+
+      {/* User Profile - Bottom */}
+      {user && (
+        <div className="p-3 border-t border-slate-200 mt-auto">
+          <div className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer">
+            <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
+              {user.imageUrl ? (
+                <img
+                  src={user.imageUrl}
+                  alt={user.fullName || "User"}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-sm font-medium">
+                  {user.firstName?.[0] || user.emailAddresses?.[0]?.emailAddress?.[0]?.toUpperCase() || "U"}
+                </div>
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-slate-900 truncate">
+                {user.fullName || "User"}
+              </p>
+              <p className="text-xs text-slate-500 truncate">
+                {user.emailAddresses?.[0]?.emailAddress || ""}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 

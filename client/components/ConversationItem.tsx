@@ -108,13 +108,7 @@ export function ConversationItem({
                 </button>
               </div>
 
-              {conversation.last_message && (
-                <p className="text-xs text-slate-500 truncate mt-1">
-                  {conversation.last_message}
-                </p>
-              )}
-
-              <div className="flex items-center gap-2 mt-2">
+              <div className="flex items-center gap-2 mt-1">
                 <span className="text-xs text-slate-400">
                   {formatDate(conversation.updated_at)}
                 </span>
