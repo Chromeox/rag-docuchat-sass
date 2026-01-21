@@ -1,14 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  MessageSquarePlus,
-  ChevronLeft,
-  ChevronRight,
-  Trash2,
-  Menu,
+  PanelLeftClose,
+  PanelLeft,
+  SquarePen,
+  Search,
   X,
+  Menu,
+  Loader2,
+  MessageSquare,
 } from "lucide-react";
 import { ConversationItem } from "./ConversationItem";
 import { useAuth, useUser } from "@clerk/nextjs";
@@ -40,18 +42,41 @@ export function ConversationSidebar({
   const { user } = useUser();
   const { getToken } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(true);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showSearch, setShowSearch] = useState(false);
+
+  // Detect OS for keyboard shortcut display
+  const isMac = typeof window !== "undefined" && navigator.platform.toUpperCase().indexOf("MAC") >= 0;
+  const modKey = isMac ? "⌘" : "Ctrl";
 
   // Load conversations on mount
   useEffect(() => {
     loadConversations();
   }, [userId]);
 
+  // Keyboard shortcut for search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setShowSearch(true);
+        setIsExpanded(true);
+      }
+      if (e.key === "Escape" && showSearch) {
+        setShowSearch(false);
+        setSearchQuery("");
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showSearch]);
+
   const loadConversations = async () => {
     if (!user) return;
-    
+
     try {
       setIsLoading(true);
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -78,7 +103,7 @@ export function ConversationSidebar({
 
   const handleDelete = async (id: number) => {
     if (!user) return;
-    
+
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
       const token = await getToken();
@@ -98,11 +123,57 @@ export function ConversationSidebar({
     }
   };
 
+  // Filter conversations by search query
+  const filteredConversations = useMemo(() => {
+    if (!searchQuery.trim()) return conversations;
+    const query = searchQuery.toLowerCase();
+    return conversations.filter(
+      (c) =>
+        c.title.toLowerCase().includes(query) ||
+        c.last_message?.toLowerCase().includes(query)
+    );
+  }, [conversations, searchQuery]);
+
+  // Icon button with tooltip
+  const IconButton = ({
+    icon: Icon,
+    label,
+    shortcut,
+    onClick,
+    isActive = false,
+  }: {
+    icon: React.ElementType;
+    label: string;
+    shortcut?: string;
+    onClick: () => void;
+    isActive?: boolean;
+  }) => (
+    <div className="relative group">
+      <button
+        onClick={onClick}
+        className={`w-10 h-10 flex items-center justify-center rounded-lg transition-colors ${
+          isActive
+            ? "bg-slate-200 text-slate-900"
+            : "text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+        }`}
+      >
+        <Icon className="w-5 h-5" />
+      </button>
+      {/* Tooltip */}
+      <div className="absolute left-12 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center gap-2 px-3 py-1.5 bg-slate-900 text-white text-sm rounded-lg whitespace-nowrap z-50 shadow-lg">
+        {label}
+        {shortcut && (
+          <span className="text-slate-400 text-xs font-mono">{shortcut}</span>
+        )}
+      </div>
+    </div>
+  );
+
   // Mobile toggle button
   const MobileToggle = () => (
     <button
       onClick={() => setIsMobileOpen(!isMobileOpen)}
-      className="lg:hidden fixed top-20 left-4 z-50 p-3 bg-white rounded-full shadow-lg border border-slate-200 hover:bg-slate-50 transition-colors"
+      className="lg:hidden fixed top-4 left-4 z-50 w-10 h-10 flex items-center justify-center bg-white rounded-lg shadow-lg border border-slate-200 hover:bg-slate-50 transition-colors"
     >
       {isMobileOpen ? (
         <X className="w-5 h-5 text-slate-700" />
@@ -112,75 +183,115 @@ export function ConversationSidebar({
     </button>
   );
 
-  const SidebarContent = () => (
-    <div className="flex flex-col h-full bg-white border-r border-slate-200">
-      {/* Header */}
-      <div className="p-4 border-b border-slate-200 flex items-center justify-between">
-        {!isCollapsed && (
-          <h2 className="font-semibold text-slate-900">Conversations</h2>
-        )}
-        <button
-          onClick={() => {
-            setIsCollapsed(!isCollapsed);
-            setIsMobileOpen(false);
-          }}
-          className="hidden lg:block p-2 rounded-lg hover:bg-slate-100 transition-colors"
-        >
-          {isCollapsed ? (
-            <ChevronRight className="w-4 h-4 text-slate-600" />
-          ) : (
-            <ChevronLeft className="w-4 h-4 text-slate-600" />
-          )}
-        </button>
-      </div>
-
-      {/* New conversation button */}
-      <div className="p-3">
-        <motion.button
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
+  // Icon strip (always visible when expanded or collapsed)
+  const IconStrip = () => (
+    <div className="flex flex-col items-center py-3 px-2 border-r border-slate-200 bg-slate-50 h-full">
+      <div className="space-y-1">
+        <IconButton
+          icon={isExpanded ? PanelLeftClose : PanelLeft}
+          label={isExpanded ? "Close sidebar" : "Open sidebar"}
+          shortcut={`${modKey}+\\`}
+          onClick={() => setIsExpanded(!isExpanded)}
+        />
+        <IconButton
+          icon={SquarePen}
+          label="New chat"
+          shortcut={`${modKey}+N`}
           onClick={() => {
             onNewConversation();
             setIsMobileOpen(false);
           }}
-          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all shadow-sm hover:shadow-md"
-        >
-          <MessageSquarePlus className="w-5 h-5" />
-          {!isCollapsed && <span className="font-medium">New Chat</span>}
-        </motion.button>
+        />
+        <IconButton
+          icon={Search}
+          label="Search chats"
+          shortcut={`${modKey}+K`}
+          onClick={() => {
+            setShowSearch(true);
+            setIsExpanded(true);
+          }}
+          isActive={showSearch}
+        />
+      </div>
+    </div>
+  );
+
+  // Conversation list panel
+  const ConversationPanel = () => (
+    <div className="flex-1 flex flex-col h-full bg-white overflow-hidden">
+      {/* Header */}
+      <div className="px-4 py-3 border-b border-slate-200">
+        <h2 className="font-semibold text-slate-900 text-sm">Chats</h2>
       </div>
 
+      {/* Search input */}
+      <AnimatePresence>
+        {showSearch && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden border-b border-slate-200"
+          >
+            <div className="px-3 py-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search chats..."
+                  autoFocus
+                  className="w-full pl-9 pr-8 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-100 rounded"
+                  >
+                    <X className="w-3 h-3 text-slate-400" />
+                  </button>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Conversations list */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar px-2">
+      <div className="flex-1 overflow-y-auto custom-scrollbar">
         {isLoading ? (
           <div className="flex items-center justify-center py-8">
-            <div className="flex flex-col items-center gap-2">
-              <div className="w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin" />
-              {!isCollapsed && (
-                <p className="text-sm text-slate-500">Loading...</p>
-              )}
-            </div>
+            <Loader2 className="w-6 h-6 text-slate-400 animate-spin" />
           </div>
-        ) : conversations.length === 0 ? (
-          !isCollapsed && (
-            <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
-              <MessageSquarePlus className="w-12 h-12 text-slate-300 mb-3" />
-              <p className="text-sm text-slate-500">
-                No conversations yet
-              </p>
-              <p className="text-xs text-slate-400 mt-1">
-                Start a new chat to begin
-              </p>
-            </div>
-          )
+        ) : filteredConversations.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+            {searchQuery ? (
+              <>
+                <Search className="w-10 h-10 text-slate-300 mb-3" />
+                <p className="text-sm text-slate-500">No chats found</p>
+                <p className="text-xs text-slate-400 mt-1">
+                  Try a different search term
+                </p>
+              </>
+            ) : (
+              <>
+                <MessageSquare className="w-10 h-10 text-slate-300 mb-3" />
+                <p className="text-sm text-slate-500">No conversations yet</p>
+                <p className="text-xs text-slate-400 mt-1">
+                  Start a new chat to begin
+                </p>
+              </>
+            )}
+          </div>
         ) : (
-          <div className="space-y-1 py-2">
-            {conversations.map((conversation) => (
+          <div className="py-2 px-2">
+            {filteredConversations.map((conversation) => (
               <ConversationItem
                 key={conversation.id}
                 conversation={conversation}
                 isActive={conversation.id === currentConversationId}
-                isCollapsed={isCollapsed}
+                isCollapsed={false}
                 onSelect={() => {
                   onSelectConversation(conversation.id);
                   setIsMobileOpen(false);
@@ -201,10 +312,24 @@ export function ConversationSidebar({
       {/* Desktop sidebar */}
       <motion.aside
         initial={false}
-        animate={{ width: isCollapsed ? 80 : 280 }}
-        className="hidden lg:block h-screen sticky top-0 transition-all duration-300"
+        animate={{ width: isExpanded ? 320 : 56 }}
+        transition={{ duration: 0.2, ease: "easeInOut" }}
+        className="hidden lg:flex h-screen sticky top-0 border-r border-slate-200"
       >
-        <SidebarContent />
+        <IconStrip />
+        <AnimatePresence>
+          {isExpanded && (
+            <motion.div
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: 264, opacity: 1 }}
+              exit={{ width: 0, opacity: 0 }}
+              transition={{ duration: 0.2, ease: "easeInOut" }}
+              className="overflow-hidden"
+            >
+              <ConversationPanel />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.aside>
 
       {/* Mobile drawer */}
@@ -222,13 +347,14 @@ export function ConversationSidebar({
 
             {/* Drawer */}
             <motion.aside
-              initial={{ x: -280 }}
+              initial={{ x: -320 }}
               animate={{ x: 0 }}
-              exit={{ x: -280 }}
+              exit={{ x: -320 }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="lg:hidden fixed top-0 left-0 h-screen w-[280px] z-50 shadow-2xl"
+              className="lg:hidden fixed top-0 left-0 h-screen w-[320px] z-50 shadow-2xl flex"
             >
-              <SidebarContent />
+              <IconStrip />
+              <ConversationPanel />
             </motion.aside>
           </>
         )}
