@@ -112,7 +112,7 @@ async def trigger_ingestion(
             message=f"Successfully ingested {len(pending_docs)} document(s). Vector store ready for queries.",
             documents_processed=result["documents_processed"],
             chunks_created=result["chunks_created"],
-            vector_store_path=result["vector_store_path"],
+            vector_store_path=result.get("vector_store_path", "supabase_pgvector" if result.get("storage") == "supabase_pgvector" else ""),
             user_id=user_id
         )
 
