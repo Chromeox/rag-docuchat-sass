@@ -400,6 +400,7 @@ export function ConversationSidebar({
               animate={{ width: 288, opacity: 1 }}
               exit={{ width: 56, opacity: 0 }}
               transition={{ duration: 0.15, ease: "easeOut" }}
+              className="h-full"
             >
               <ExpandedSidebar />
             </motion.div>
@@ -410,6 +411,7 @@ export function ConversationSidebar({
               animate={{ width: 56, opacity: 1 }}
               exit={{ width: 288, opacity: 0 }}
               transition={{ duration: 0.15, ease: "easeOut" }}
+              className="h-full"
             >
               <CollapsedSidebar />
             </motion.div>
