@@ -4,14 +4,13 @@ import { useState, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Upload,
-  File,
-  FileText,
   X,
   CheckCircle2,
   AlertCircle,
   Loader2,
 } from "lucide-react";
 import { useAuth, useUser } from "@clerk/nextjs";
+import { FileIcon } from "./FileIcon";
 
 interface UploadedFile {
   id: string;
@@ -218,12 +217,6 @@ export function DocumentUpload({ onUploadComplete, className = "" }: DocumentUpl
     setFiles((prev) => prev.filter((f) => f.id !== id));
   };
 
-  const getFileIcon = (fileName: string) => {
-    const ext = fileName.split(".").pop()?.toLowerCase();
-    if (ext === "pdf") return <File className="w-5 h-5 text-red-500" />;
-    return <FileText className="w-5 h-5 text-blue-500" />;
-  };
-
   const getStatusIcon = (file: UploadedFile) => {
     switch (file.status) {
       case "uploading":
@@ -360,7 +353,7 @@ export function DocumentUpload({ onUploadComplete, className = "" }: DocumentUpl
                 <div className="flex items-start gap-3">
                   {/* File Icon */}
                   <div className="flex-shrink-0 mt-1">
-                    {getFileIcon(file.file.name)}
+                    <FileIcon filename={file.file.name} size="md" />
                   </div>
 
                   {/* File Info */}

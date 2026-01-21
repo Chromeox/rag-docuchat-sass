@@ -4,11 +4,14 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Send, FileText, Paperclip, X, FolderOpen } from "lucide-react";
+import { Send, FileText, Paperclip, X, FolderOpen, Copy, Check } from "lucide-react";
 import { SuggestedPrompts } from "@/components/SuggestedPrompts";
 import { DocumentUpload } from "@/components/DocumentUpload";
 import { ConversationSidebar } from "@/components/ConversationSidebar";
 import { DocumentManager } from "@/components/DocumentManager";
+import { FileIcon } from "@/components/FileIcon";
+import { useToast } from "@/contexts/ToastContext";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 
 interface Message {
   role: "user" | "assistant";
@@ -19,6 +22,9 @@ export default function ChatPage() {
   const router = useRouter();
   const { isSignedIn, isLoaded, getToken } = useAuth();
   const { user } = useUser();
+  const toast = useToast();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [copiedMessageIndex, setCopiedMessageIndex] = useState<number | null>(null);
 
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -37,7 +43,43 @@ export default function ChatPage() {
   const [currentConversationId, setCurrentConversationId] = useState<number | null>(null);
 
   // Ref to hold the latest upload handler (avoids stale closure in drag-drop effect)
-  const handleInlineUploadRef = useRef<(files: FileList) => Promise<void>>();
+  const handleInlineUploadRef = useRef<(files: FileList) => Promise<void>>(null);
+
+  // Copy message to clipboard
+  const handleCopyMessage = useCallback(async (content: string, index: number) => {
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopiedMessageIndex(index);
+      toast.success("Copied to clipboard!");
+      // Reset after 2 seconds
+      setTimeout(() => setCopiedMessageIndex(null), 2000);
+    } catch (err) {
+      toast.error("Failed to copy to clipboard");
+    }
+  }, [toast]);
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts({
+    shortcuts: [
+      {
+        key: "n",
+        ctrl: true,
+        action: () => {
+          handleNewConversation();
+          toast.info("New chat started");
+        },
+        description: "New chat",
+      },
+      {
+        key: "/",
+        ctrl: true,
+        action: () => {
+          inputRef.current?.focus();
+        },
+        description: "Focus input",
+      },
+    ],
+  });
 
   useEffect(() => {
     // Redirect to home if not signed in
@@ -137,10 +179,7 @@ export default function ChatPage() {
 
     if (!user?.id) {
       console.error("[UPLOAD] User not authenticated - user:", user, "isLoaded:", isLoaded, "isSignedIn:", isSignedIn);
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: "❌ Please wait for authentication to complete before uploading." },
-      ]);
+      toast.error("Please wait for authentication to complete before uploading.");
       return;
     }
 
@@ -215,7 +254,8 @@ export default function ChatPage() {
       const ingestData = await ingestResponse.json();
       console.log("[INGEST] Ingestion success:", ingestData);
 
-      // Add success message
+      // Add success message and toast
+      toast.success(`Successfully processed ${fileArray.length} ${fileArray.length === 1 ? "file" : "files"}!`);
       setMessages((prev) => [
         ...prev,
         {
@@ -228,7 +268,8 @@ export default function ChatPage() {
     } catch (error) {
       console.error("[UPLOAD] Error:", error);
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      // Add error message with details
+      // Add error message with details and toast
+      toast.error(`Upload failed: ${errorMessage}`);
       setMessages((prev) => [
         ...prev,
         {
@@ -237,7 +278,7 @@ export default function ChatPage() {
         },
       ]);
     }
-  }, [user?.id, getToken, isLoaded, isSignedIn]);
+  }, [user?.id, getToken, isLoaded, isSignedIn, toast]);
 
   // Keep the ref updated with the latest handleInlineUpload (fixes stale closure)
   useEffect(() => {
@@ -511,16 +552,31 @@ export default function ChatPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
-              className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+              className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} group`}
             >
               <div
-                className={`max-w-2xl px-6 py-4 rounded-2xl message-bubble ${
+                className={`relative max-w-2xl px-6 py-4 rounded-2xl message-bubble ${
                   msg.role === "user"
                     ? "bg-blue-600 text-white rounded-br-none"
                     : "bg-white border border-slate-200 text-slate-900 rounded-bl-none shadow-sm"
                 }`}
               >
                 <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+
+                {/* Copy button for assistant messages */}
+                {msg.role === "assistant" && (
+                  <button
+                    onClick={() => handleCopyMessage(msg.content, idx)}
+                    className="absolute top-2 right-2 p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="Copy to clipboard"
+                  >
+                    {copiedMessageIndex === idx ? (
+                      <Check className="w-3.5 h-3.5 text-green-600" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5 text-slate-500" />
+                    )}
+                  </button>
+                )}
               </div>
             </motion.div>
           ))}
@@ -569,10 +625,11 @@ export default function ChatPage() {
               <Paperclip className="w-5 h-5 text-slate-600 group-hover:text-blue-600 transition-colors" />
             </button>
             <input
+              ref={inputRef}
               type="text"
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              placeholder="Ask anything about your documents..."
+              placeholder="Ask anything about your documents... (Ctrl+/ to focus)"
               disabled={isLoading}
               className="flex-1 px-6 py-3 border border-slate-200 rounded-full focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 disabled:opacity-50 text-sm"
             />

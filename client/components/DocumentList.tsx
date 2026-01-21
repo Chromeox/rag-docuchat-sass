@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  File,
   FileText,
   Trash2,
   RefreshCw,
@@ -12,6 +11,8 @@ import {
   Clock,
   Loader2,
 } from "lucide-react";
+import { ConfirmModal } from "./ConfirmModal";
+import { FileIcon } from "./FileIcon";
 
 export interface Document {
   id: number;
@@ -40,17 +41,24 @@ export function DocumentList({
 }: DocumentListProps) {
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [reingestingId, setReingestingId] = useState<number | null>(null);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [documentToDelete, setDocumentToDelete] = useState<Document | null>(null);
 
-  const handleDelete = async (documentId: number) => {
-    if (!confirm("Are you sure you want to delete this document? This action cannot be undone.")) {
-      return;
-    }
+  const handleDeleteClick = (doc: Document) => {
+    setDocumentToDelete(doc);
+    setDeleteModalOpen(true);
+  };
 
-    setDeletingId(documentId);
+  const handleConfirmDelete = async () => {
+    if (!documentToDelete) return;
+
+    setDeleteModalOpen(false);
+    setDeletingId(documentToDelete.id);
     try {
-      await onDelete(documentId);
+      await onDelete(documentToDelete.id);
     } finally {
       setDeletingId(null);
+      setDocumentToDelete(null);
     }
   };
 
@@ -61,13 +69,6 @@ export function DocumentList({
     } finally {
       setReingestingId(null);
     }
-  };
-
-  const getFileIcon = (fileType: string) => {
-    if (fileType === ".pdf") {
-      return <File className="w-5 h-5 text-red-500" />;
-    }
-    return <FileText className="w-5 h-5 text-blue-500" />;
   };
 
   const getStatusBadge = (doc: Document) => {
@@ -136,9 +137,25 @@ export function DocumentList({
   }
 
   return (
-    <div className="space-y-3">
-      <AnimatePresence>
-        {documents.map((doc) => (
+    <>
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={deleteModalOpen}
+        onClose={() => {
+          setDeleteModalOpen(false);
+          setDocumentToDelete(null);
+        }}
+        onConfirm={handleConfirmDelete}
+        title="Delete Document"
+        message={`Are you sure you want to delete "${documentToDelete?.original_filename}"? This action cannot be undone and will remove the document from your knowledge base.`}
+        confirmText="Delete"
+        variant="danger"
+        isLoading={deletingId !== null}
+      />
+
+      <div className="space-y-3">
+        <AnimatePresence>
+          {documents.map((doc) => (
           <motion.div
             key={doc.id}
             initial={{ opacity: 0, y: 20 }}
@@ -150,7 +167,7 @@ export function DocumentList({
             <div className="flex items-start gap-3">
               {/* File Icon */}
               <div className="flex-shrink-0 mt-1">
-                {getFileIcon(doc.file_type)}
+                <FileIcon filename={doc.original_filename} size="md" />
               </div>
 
               {/* File Info */}
@@ -218,7 +235,7 @@ export function DocumentList({
                   )}
 
                   <button
-                    onClick={() => handleDelete(doc.id)}
+                    onClick={() => handleDeleteClick(doc)}
                     disabled={deletingId === doc.id}
                     className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
@@ -239,7 +256,8 @@ export function DocumentList({
             </div>
           </motion.div>
         ))}
-      </AnimatePresence>
-    </div>
+        </AnimatePresence>
+      </div>
+    </>
   );
 }

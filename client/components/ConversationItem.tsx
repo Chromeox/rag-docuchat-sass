@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { MessageSquare, Trash2, MoreVertical } from "lucide-react";
+import { ConfirmModal } from "./ConfirmModal";
 
 interface Conversation {
   id: number;
@@ -29,6 +30,7 @@ export function ConversationItem({
   onDelete,
 }: ConversationItemProps) {
   const [showMenu, setShowMenu] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -50,12 +52,15 @@ export function ConversationItem({
     }
   };
 
-  const handleDelete = (e: React.MouseEvent) => {
+  const handleDeleteClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (confirm("Are you sure you want to delete this conversation?")) {
-      onDelete();
-    }
+    setShowDeleteModal(true);
     setShowMenu(false);
+  };
+
+  const handleConfirmDelete = () => {
+    onDelete();
+    setShowDeleteModal(false);
   };
 
   return (
@@ -135,7 +140,7 @@ export function ConversationItem({
           className="absolute right-3 top-12 bg-white rounded-lg shadow-lg border border-slate-200 overflow-hidden z-10 min-w-[140px]"
         >
           <button
-            onClick={handleDelete}
+            onClick={handleDeleteClick}
             className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2"
           >
             <Trash2 className="w-4 h-4" />
@@ -143,6 +148,17 @@ export function ConversationItem({
           </button>
         </motion.div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={handleConfirmDelete}
+        title="Delete Conversation"
+        message="Are you sure you want to delete this conversation? This action cannot be undone."
+        confirmText="Delete"
+        variant="danger"
+      />
     </motion.div>
   );
 }
