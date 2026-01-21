@@ -167,7 +167,10 @@ export function DocumentManager({
         alert(`Successfully cleared ${data.deleted_count} document(s)`);
       } else {
         const error = await response.json();
-        alert(`Clear failed: ${error.detail}`);
+        const errorMessage = typeof error.detail === 'string'
+          ? error.detail
+          : error.detail?.msg || JSON.stringify(error.detail) || 'Unknown error';
+        alert(`Clear failed: ${errorMessage}`);
       }
     } catch (error) {
       console.error("Failed to clear documents:", error);

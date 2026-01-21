@@ -50,6 +50,12 @@ class DeleteResponse(BaseModel):
     success: bool
 
 
+class ClearAllResponse(BaseModel):
+    message: str
+    success: bool
+    deleted_count: int
+
+
 @router.get("/documents", response_model=DocumentListResponse)
 @limiter.limit("60/minute")
 async def list_documents(
@@ -80,6 +86,78 @@ async def list_documents(
         documents=[DocumentResponse.model_validate(doc) for doc in documents],
         total=len(documents)
     )
+
+
+# IMPORTANT: Static routes must come BEFORE dynamic routes with path parameters
+@router.delete("/documents/clear-all", response_model=ClearAllResponse)
+@limiter.limit("5/minute")
+async def clear_all_documents(
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """
+    Delete ALL documents for the authenticated user.
+
+    This will:
+    1. Delete all physical files from disk
+    2. Delete all database records
+    3. Clear the user's entire vector store
+    4. Reset quota tracking
+
+    Returns:
+        Success message with count of deleted documents
+    """
+    # Get authenticated user_id from middleware
+    user_id = request.state.user_id
+
+    doc_repo = DocumentRepository(db)
+    documents = doc_repo.get_by_user(user_id)
+
+    if not documents:
+        return ClearAllResponse(
+            message="No documents to delete",
+            success=True,
+            deleted_count=0
+        )
+
+    try:
+        deleted_count = 0
+        total_size = 0
+
+        # Delete each document's physical file
+        for document in documents:
+            file_path = Path(document.file_path)
+            if file_path.exists():
+                file_path.unlink()
+            total_size += document.file_size
+            deleted_count += 1
+
+        # Delete all database records for this user
+        doc_repo.delete_all_by_user(user_id)
+
+        # Update quota tracking
+        quota_service = QuotaService(db)
+        quota_service.reset_user_quota(user_id)
+
+        # Delete user's entire vector store directory
+        vector_store_path = Path(f"vector_store/{user_id}")
+        if vector_store_path.exists():
+            shutil.rmtree(vector_store_path)
+
+        # Clear cache
+        clear_vector_db_cache(user_id)
+
+        return ClearAllResponse(
+            message=f"Successfully deleted {deleted_count} document(s)",
+            success=True,
+            deleted_count=deleted_count
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to clear documents: {str(e)}"
+        )
 
 
 @router.get("/documents/{document_id}", response_model=DocumentResponse)
@@ -198,83 +276,6 @@ async def delete_document(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to delete document: {str(e)}"
-        )
-
-
-class ClearAllResponse(BaseModel):
-    message: str
-    success: bool
-    deleted_count: int
-
-
-@router.delete("/documents/clear-all", response_model=ClearAllResponse)
-@limiter.limit("5/minute")
-async def clear_all_documents(
-    request: Request,
-    db: Session = Depends(get_db)
-):
-    """
-    Delete ALL documents for the authenticated user.
-
-    This will:
-    1. Delete all physical files from disk
-    2. Delete all database records
-    3. Clear the user's entire vector store
-    4. Reset quota tracking
-
-    Returns:
-        Success message with count of deleted documents
-    """
-    # Get authenticated user_id from middleware
-    user_id = request.state.user_id
-
-    doc_repo = DocumentRepository(db)
-    documents = doc_repo.get_by_user(user_id)
-
-    if not documents:
-        return ClearAllResponse(
-            message="No documents to delete",
-            success=True,
-            deleted_count=0
-        )
-
-    try:
-        deleted_count = 0
-        total_size = 0
-
-        # Delete each document's physical file
-        for document in documents:
-            file_path = Path(document.file_path)
-            if file_path.exists():
-                file_path.unlink()
-            total_size += document.file_size
-            deleted_count += 1
-
-        # Delete all database records for this user
-        doc_repo.delete_all_by_user(user_id)
-
-        # Update quota tracking
-        quota_service = QuotaService(db)
-        quota_service.reset_user_quota(user_id)
-
-        # Delete user's entire vector store directory
-        vector_store_path = Path(f"vector_store/{user_id}")
-        if vector_store_path.exists():
-            shutil.rmtree(vector_store_path)
-
-        # Clear cache
-        clear_vector_db_cache(user_id)
-
-        return ClearAllResponse(
-            message=f"Successfully deleted {deleted_count} document(s)",
-            success=True,
-            deleted_count=deleted_count
-        )
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to clear documents: {str(e)}"
         )
 
 
