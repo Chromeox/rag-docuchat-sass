@@ -4,8 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Send, ArrowLeft, FileText, Paperclip, X, FolderOpen } from "lucide-react";
-import Link from "next/link";
+import { Send, FileText, Paperclip, X, FolderOpen } from "lucide-react";
 import { SuggestedPrompts } from "@/components/SuggestedPrompts";
 import { DocumentUpload } from "@/components/DocumentUpload";
 import { ConversationSidebar } from "@/components/ConversationSidebar";
@@ -477,13 +476,13 @@ export default function ChatPage() {
         <div className="container mx-auto px-4 py-4 max-w-4xl">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <Link
-                href="/"
-                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors text-sm font-medium"
+              <button
+                onClick={handleNewConversation}
+                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 hover:border-blue-300 transition-colors text-sm font-medium text-slate-700 hover:text-blue-600"
               >
-                <ArrowLeft className="w-4 h-4" />
-                Home
-              </Link>
+                <FileText className="w-4 h-4" />
+                New Chat
+              </button>
               <h1 className="text-xl font-bold text-slate-900">DocuChat</h1>
             </div>
             <div className="flex items-center gap-3">

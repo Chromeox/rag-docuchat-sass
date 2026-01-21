@@ -15,7 +15,10 @@ from langchain_core.documents import Document
 from app.core.embedding_factory import get_embeddings
 
 
-# Use /tmp for Railway (ephemeral but writable) - must match upload.py paths
+# Check if Supabase pgvector is available for persistent storage
+USE_SUPABASE_VECTOR = bool(os.getenv("SUPABASE_DATABASE_URL"))
+
+# Use /tmp for Railway (ephemeral but writable) - fallback for FAISS
 if os.getenv("RAILWAY_ENVIRONMENT"):
     UPLOADED_DOCS_PATH = "/tmp/uploaded_docs"
     VECTOR_STORE_BASE = "/tmp/vector_store"
@@ -25,6 +28,7 @@ else:
 
 print(f"[INGEST] UPLOADED_DOCS_PATH: {UPLOADED_DOCS_PATH}")
 print(f"[INGEST] VECTOR_STORE_BASE: {VECTOR_STORE_BASE}")
+print(f"[INGEST] USE_SUPABASE_VECTOR: {USE_SUPABASE_VECTOR}")
 
 
 def load_pdf_with_pdfplumber(file_path: Path) -> List[Document]:
@@ -120,15 +124,16 @@ def load_document(file_path: Path, user_id: Optional[str] = None) -> List[Docume
         return []
 
 
-def ingest_docs(user_id: Optional[str] = None, data_path: Optional[str] = None):
+def ingest_docs(user_id: Optional[str] = None, data_path: Optional[str] = None, document_id: Optional[int] = None):
     """
-    Ingest documents from the specified directory and create FAISS vector store.
+    Ingest documents and store embeddings in Supabase pgvector (persistent) or FAISS (fallback).
 
     Supports: PDF, DOCX, TXT, MD, CSV, JSON, and code files.
 
     Args:
-        user_id: Optional user ID for user-specific ingestion. If provided, creates user-specific vector store.
+        user_id: Optional user ID for user-specific ingestion.
         data_path: Optional custom directory path. If not provided, uses user_id to determine path.
+        document_id: Optional document ID for tracking in pgvector storage.
 
     Returns:
         dict: Status information including number of documents and chunks processed
@@ -177,7 +182,33 @@ def ingest_docs(user_id: Optional[str] = None, data_path: Optional[str] = None):
     chunks = splitter.split_documents(documents)
     print(f"Created {len(chunks)} chunks")
 
-    # Create embeddings and vector store
+    # Use Supabase pgvector for persistent storage if available
+    if USE_SUPABASE_VECTOR and user_id:
+        from app.services.supabase_vectorstore import store_document_chunks
+
+        # Convert LangChain documents to dicts for storage
+        chunk_dicts = [
+            {
+                'content': chunk.page_content,
+                'metadata': chunk.metadata
+            }
+            for chunk in chunks
+        ]
+
+        # Store in Supabase pgvector
+        stored_count = store_document_chunks(chunk_dicts, user_id, document_id)
+        print(f"✅ Stored {stored_count} chunks in Supabase pgvector (persistent)")
+
+        return {
+            "status": "success",
+            "documents_processed": len(documents),
+            "chunks_created": len(chunks),
+            "storage": "supabase_pgvector",
+            "user_id": user_id
+        }
+
+    # Fallback to FAISS (ephemeral storage)
+    print("⚠️  Using FAISS (ephemeral storage) - set SUPABASE_DATABASE_URL for persistence")
     embeddings = get_embeddings()
     db = FAISS.from_documents(chunks, embeddings)
 
@@ -198,6 +229,7 @@ def ingest_docs(user_id: Optional[str] = None, data_path: Optional[str] = None):
         "documents_processed": len(documents),
         "chunks_created": len(chunks),
         "vector_store_path": vector_path,
+        "storage": "faiss",
         "user_id": user_id
     }
 

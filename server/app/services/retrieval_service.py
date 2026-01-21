@@ -5,13 +5,16 @@ from pathlib import Path
 from app.core.embedding_factory import get_embeddings
 
 
+# Check if Supabase pgvector is available for persistent storage
+USE_SUPABASE_VECTOR = bool(os.getenv("SUPABASE_DATABASE_URL"))
+
 # Use /tmp for Railway (ephemeral but writable) - must match ingest.py paths
 if os.getenv("RAILWAY_ENVIRONMENT"):
     VECTOR_STORE_BASE = Path("/tmp/vector_store")
 else:
     VECTOR_STORE_BASE = Path("vector_store")
 
-# Cache for vector databases (user_id -> FAISS instance)
+# Cache for vector databases (user_id -> FAISS instance) - only used for FAISS fallback
 _db_cache: Dict[str, FAISS] = {}
 
 
@@ -82,6 +85,9 @@ def retrieve_context(query: str, user_id: Optional[str] = None, k: int = 3) -> s
     """
     Retrieve context from vector store for a specific user.
 
+    Uses Supabase pgvector for persistent storage if available,
+    otherwise falls back to FAISS.
+
     Args:
         query: The search query
         user_id: Optional user ID. If provided, searches in user-specific vector store.
@@ -91,6 +97,35 @@ def retrieve_context(query: str, user_id: Optional[str] = None, k: int = 3) -> s
         Combined context string from retrieved documents.
         Returns empty string if no vector store exists.
     """
+    # Use Supabase pgvector if available
+    if USE_SUPABASE_VECTOR and user_id:
+        try:
+            from app.services.supabase_vectorstore import search_similar_chunks, has_user_chunks
+
+            # Check if user has any chunks stored
+            if not has_user_chunks(user_id):
+                return ""
+
+            # Search for similar chunks
+            results = search_similar_chunks(
+                query=query,
+                user_id=user_id,
+                k=k,
+                threshold=0.5  # Similarity threshold
+            )
+
+            if not results:
+                return ""
+
+            # Combine content from results
+            return "\n".join([chunk.content for chunk in results])
+
+        except Exception as e:
+            print(f"⚠️  Supabase retrieval error: {e}")
+            # Fall through to FAISS fallback
+            pass
+
+    # Fallback to FAISS
     try:
         db = get_vector_db(user_id)
         docs = db.similarity_search(query, k=k)
@@ -103,3 +138,29 @@ def retrieve_context(query: str, user_id: Optional[str] = None, k: int = 3) -> s
     except RuntimeError:
         # No vector store yet - return empty context
         return ""
+
+
+def has_documents(user_id: str) -> bool:
+    """
+    Check if a user has any documents/chunks stored.
+
+    Args:
+        user_id: The user ID to check
+
+    Returns:
+        True if user has documents, False otherwise
+    """
+    if USE_SUPABASE_VECTOR:
+        try:
+            from app.services.supabase_vectorstore import has_user_chunks
+            return has_user_chunks(user_id)
+        except Exception:
+            pass
+
+    # Fallback to FAISS check
+    if user_id:
+        vector_path = VECTOR_STORE_BASE / user_id / "faiss_index"
+    else:
+        vector_path = VECTOR_STORE_BASE / "faiss_index"
+
+    return vector_path.exists()
