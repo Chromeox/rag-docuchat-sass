@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useState } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Trash2, X, AlertTriangle } from "lucide-react";
 
@@ -27,6 +28,13 @@ export function ConfirmModal({
   variant = "danger",
   isLoading = false,
 }: ConfirmModalProps) {
+  const [mounted, setMounted] = useState(false);
+
+  // Wait for client-side mount before rendering portal
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   // Handle escape key
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -60,7 +68,12 @@ export function ConfirmModal({
     warning: "bg-yellow-600 hover:bg-yellow-700 focus:ring-yellow-500",
   };
 
-  return (
+  // Don't render on server
+  if (!mounted) return null;
+
+  // Use portal to render modal at document.body level
+  // This ensures it's outside any stacking context from parent components
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
         <>
@@ -70,8 +83,13 @@ export function ConfirmModal({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50"
-            onClick={isLoading ? undefined : onClose}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm"
+            style={{ zIndex: 9999 }}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (!isLoading) onClose();
+            }}
             aria-hidden="true"
           />
 
@@ -81,10 +99,12 @@ export function ConfirmModal({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ duration: 0.2 }}
-            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white rounded-2xl shadow-2xl z-50 overflow-hidden"
+            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md mx-4 bg-white rounded-2xl shadow-2xl overflow-hidden"
+            style={{ zIndex: 10000 }}
             role="dialog"
             aria-modal="true"
             aria-labelledby="modal-title"
+            onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
             <div className="px-6 py-4 border-b border-slate-200">
@@ -105,7 +125,10 @@ export function ConfirmModal({
                   {title}
                 </h2>
                 <button
-                  onClick={onClose}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onClose();
+                  }}
                   disabled={isLoading}
                   className="ml-auto p-2 hover:bg-slate-100 rounded-full transition-colors disabled:opacity-50"
                   aria-label="Close"
@@ -123,14 +146,20 @@ export function ConfirmModal({
             {/* Footer */}
             <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex items-center justify-end gap-3">
               <button
-                onClick={onClose}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClose();
+                }}
                 disabled={isLoading}
                 className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
               >
                 {cancelText}
               </button>
               <button
-                onClick={onConfirm}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onConfirm();
+                }}
                 disabled={isLoading}
                 className={`px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-offset-2 ${buttonColors[variant]}`}
               >
@@ -165,6 +194,7 @@ export function ConfirmModal({
           </motion.div>
         </>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }
