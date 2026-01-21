@@ -81,7 +81,7 @@ def clear_vector_db_cache(user_id: Optional[str] = None):
         _db_cache = {}
 
 
-def retrieve_context(query: str, user_id: Optional[str] = None, k: int = 3) -> str:
+def retrieve_context(query: str, user_id: Optional[str] = None, k: int = 5) -> str:
     """
     Retrieve context from vector store for a specific user.
 
@@ -113,13 +113,13 @@ def retrieve_context(query: str, user_id: Optional[str] = None, k: int = 3) -> s
                 print(f"[RETRIEVAL] No chunks found for user, returning empty")
                 return ""
 
-            # Search for similar chunks with lower threshold for debugging
-            print(f"[RETRIEVAL] Searching for similar chunks...")
+            # Search for similar chunks - no threshold, always return top k
+            print(f"[RETRIEVAL] Searching for similar chunks (k={k})...")
             results = search_similar_chunks(
                 query=query,
                 user_id=user_id,
-                k=k,
-                threshold=0.3  # Lowered threshold for better recall
+                k=k
+                # No threshold - always return top k results for better RAG
             )
 
             print(f"[RETRIEVAL] search_similar_chunks returned {len(results) if results else 0} results")

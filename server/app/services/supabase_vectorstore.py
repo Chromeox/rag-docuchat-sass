@@ -101,29 +101,37 @@ def search_similar_chunks(
     query: str,
     user_id: str,
     k: int = 5,
-    threshold: float = 0.5
+    threshold: float = 0.0  # Threshold disabled by default - always return top k
 ) -> List[DocumentChunk]:
     """
     Search for similar document chunks using vector similarity.
+
+    Note: Threshold is set to 0.0 by default to always return results.
+    For RAG, it's better to give the LLM context and let it decide relevance,
+    rather than filtering out potentially relevant content with arbitrary thresholds.
 
     Args:
         query: The search query
         user_id: Filter by user ID
         k: Number of results to return
-        threshold: Minimum similarity threshold (0-1)
+        threshold: Minimum similarity threshold (0-1), default 0.0 (disabled)
 
     Returns:
         List of DocumentChunk objects with similarity scores
     """
+    print(f"[SEARCH] Generating embedding for query: {query[:50]}...")
+
     # Generate query embedding
     embeddings_model = get_embeddings()
     query_embedding = embeddings_model.embed_query(query)
 
+    print(f"[SEARCH] Query embedding generated, searching for user: {user_id}")
+
     conn = get_supabase_connection()
     try:
         with conn.cursor() as cur:
-            # Use cosine similarity search
-            # 1 - (embedding <=> query) gives cosine similarity (0-1)
+            # Use cosine similarity search - NO threshold filter
+            # Always return top k results, let the LLM decide relevance
             cur.execute(
                 """
                 SELECT
@@ -133,11 +141,10 @@ def search_similar_chunks(
                     1 - (embedding <=> %s::vector) AS similarity
                 FROM document_chunks
                 WHERE user_id = %s
-                  AND 1 - (embedding <=> %s::vector) > %s
                 ORDER BY embedding <=> %s::vector
                 LIMIT %s
                 """,
-                (query_embedding, user_id, query_embedding, threshold, query_embedding, k)
+                (query_embedding, user_id, query_embedding, k)
             )
 
             results = []
@@ -148,6 +155,8 @@ def search_similar_chunks(
                     metadata=row[2] if row[2] else {},
                     similarity=row[3]
                 ))
+
+            print(f"[SEARCH] Found {len(results)} chunks, similarities: {[f'{r.similarity:.3f}' for r in results]}")
 
             return results
     finally:
