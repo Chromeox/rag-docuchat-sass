@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, FileText, Loader2, Upload as UploadIcon, Trash2 } from "lucide-react";
 import { DocumentList, Document } from "./DocumentList";
 import { ConfirmModal } from "./ConfirmModal";
+import { useToast } from "@/contexts/ToastContext";
 import { useAuth, useUser } from "@clerk/nextjs";
 
 interface DocumentManagerProps {
@@ -20,6 +21,7 @@ export function DocumentManager({
 }: DocumentManagerProps) {
   const { user } = useUser();
   const { getToken } = useAuth();
+  const toast = useToast();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
@@ -84,13 +86,14 @@ export function DocumentManager({
       if (response.ok) {
         await fetchDocuments();
         await checkIngestStatus();
+        toast.success("Documents ingested successfully");
       } else {
         const error = await response.json();
-        alert(`Ingestion failed: ${error.detail}`);
+        toast.error(`Ingestion failed: ${error.detail}`);
       }
     } catch (error) {
       console.error("Failed to ingest documents:", error);
-      alert("Failed to ingest documents. Please try again.");
+      toast.error("Failed to ingest documents. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -110,13 +113,14 @@ export function DocumentManager({
       if (response.ok) {
         await fetchDocuments();
         await checkIngestStatus();
+        toast.success("Document deleted successfully");
       } else {
         const error = await response.json();
-        alert(`Delete failed: ${error.detail}`);
+        toast.error(`Delete failed: ${error.detail}`);
       }
     } catch (error) {
       console.error("Failed to delete document:", error);
-      alert("Failed to delete document. Please try again.");
+      toast.error("Failed to delete document. Please try again.");
     }
   };
 
@@ -137,13 +141,14 @@ export function DocumentManager({
       if (response.ok) {
         await fetchDocuments();
         await checkIngestStatus();
+        toast.success("Document reingested successfully");
       } else {
         const error = await response.json();
-        alert(`Reingest failed: ${error.detail}`);
+        toast.error(`Reingest failed: ${error.detail}`);
       }
     } catch (error) {
       console.error("Failed to reingest document:", error);
-      alert("Failed to reingest document. Please try again.");
+      toast.error("Failed to reingest document. Please try again.");
     }
   };
 
@@ -164,17 +169,17 @@ export function DocumentManager({
         const data = await response.json();
         setDocuments([]);
         await checkIngestStatus();
-        alert(`Successfully cleared ${data.deleted_count} document(s)`);
+        toast.success(`Successfully cleared ${data.deleted_count} document(s)`);
       } else {
         const error = await response.json();
         const errorMessage = typeof error.detail === 'string'
           ? error.detail
           : error.detail?.msg || JSON.stringify(error.detail) || 'Unknown error';
-        alert(`Clear failed: ${errorMessage}`);
+        toast.error(`Clear failed: ${errorMessage}`);
       }
     } catch (error) {
       console.error("Failed to clear documents:", error);
-      alert("Failed to clear documents. Please try again.");
+      toast.error("Failed to clear documents. Please try again.");
     } finally {
       setIsClearing(false);
     }
