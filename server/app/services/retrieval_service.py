@@ -97,31 +97,46 @@ def retrieve_context(query: str, user_id: Optional[str] = None, k: int = 3) -> s
         Combined context string from retrieved documents.
         Returns empty string if no vector store exists.
     """
+    print(f"[RETRIEVAL] Starting retrieval for user: {user_id}, query: {query[:50]}...")
+    print(f"[RETRIEVAL] USE_SUPABASE_VECTOR: {USE_SUPABASE_VECTOR}")
+
     # Use Supabase pgvector if available
     if USE_SUPABASE_VECTOR and user_id:
         try:
             from app.services.supabase_vectorstore import search_similar_chunks, has_user_chunks
 
             # Check if user has any chunks stored
-            if not has_user_chunks(user_id):
+            has_chunks = has_user_chunks(user_id)
+            print(f"[RETRIEVAL] has_user_chunks({user_id}): {has_chunks}")
+
+            if not has_chunks:
+                print(f"[RETRIEVAL] No chunks found for user, returning empty")
                 return ""
 
-            # Search for similar chunks
+            # Search for similar chunks with lower threshold for debugging
+            print(f"[RETRIEVAL] Searching for similar chunks...")
             results = search_similar_chunks(
                 query=query,
                 user_id=user_id,
                 k=k,
-                threshold=0.5  # Similarity threshold
+                threshold=0.3  # Lowered threshold for better recall
             )
 
+            print(f"[RETRIEVAL] search_similar_chunks returned {len(results) if results else 0} results")
+
             if not results:
+                print(f"[RETRIEVAL] No similar chunks found, returning empty")
                 return ""
 
             # Combine content from results
-            return "\n".join([chunk.content for chunk in results])
+            context = "\n".join([chunk.content for chunk in results])
+            print(f"[RETRIEVAL] Returning context with {len(context)} chars")
+            return context
 
         except Exception as e:
-            print(f"⚠️  Supabase retrieval error: {e}")
+            print(f"⚠️  [RETRIEVAL] Supabase retrieval error: {e}")
+            import traceback
+            traceback.print_exc()
             # Fall through to FAISS fallback
             pass
 
