@@ -9,6 +9,7 @@ import {
 } from "@clerk/nextjs";
 import { ToastProvider } from "@/contexts/ToastContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { SoundProvider } from "@/contexts/SoundContext";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -38,7 +39,9 @@ export default function RootLayout({
           className={`${geistSans.variable} ${geistMono.variable} antialiased h-full overflow-hidden bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-50 transition-colors`}
         >
           <ThemeProvider defaultTheme="system">
-            <ToastProvider>{children}</ToastProvider>
+            <SoundProvider>
+              <ToastProvider>{children}</ToastProvider>
+            </SoundProvider>
           </ThemeProvider>
         </body>
       </html>

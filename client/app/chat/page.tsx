@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, FileText, Paperclip, X, FolderOpen, Copy, Check, RefreshCw, ChevronUp, MessageSquare } from "lucide-react";
+import { Send, FileText, Paperclip, X, FolderOpen, Copy, Check, RefreshCw, ChevronUp, MessageSquare, Share2, Trash2 } from "lucide-react";
 import { SuggestedPrompts } from "@/components/SuggestedPrompts";
 import { DocumentUpload } from "@/components/DocumentUpload";
 import { ConversationSidebar } from "@/components/ConversationSidebar";
@@ -14,7 +14,9 @@ import { ExportDropdown } from "@/components/ExportDropdown";
 import { StreamingMessage } from "@/components/StreamingMessage";
 import { ShortcutsModal } from "@/components/ShortcutsModal";
 import { ConfirmModal } from "@/components/ConfirmModal";
+import { ShareModal } from "@/components/ShareModal";
 import { useToast } from "@/contexts/ToastContext";
+import { useSound } from "@/contexts/SoundContext";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 
 interface Message {
@@ -71,6 +73,7 @@ export default function ChatPage() {
   const { isSignedIn, isLoaded, getToken } = useAuth();
   const { user } = useUser();
   const toast = useToast();
+  const { playNotificationSound } = useSound();
   const inputRef = useRef<HTMLInputElement>(null);
   const [copiedMessageIndex, setCopiedMessageIndex] = useState<number | null>(null);
   const [conversationCopied, setConversationCopied] = useState(false);
@@ -97,6 +100,8 @@ export default function ChatPage() {
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [showScrollToTop, setShowScrollToTop] = useState(false);
   const [showNewChatConfirmModal, setShowNewChatConfirmModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [showClearChatConfirmModal, setShowClearChatConfirmModal] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{ progress: number; stage: string } | null>(null);
 
   // Refs
@@ -647,6 +652,8 @@ export default function ChatPage() {
       ]);
       setStreamingContent("");
       setIsStreaming(false);
+      // Play notification sound when AI response is complete
+      playNotificationSound();
     }
   };
 
@@ -722,6 +729,20 @@ export default function ChatPage() {
     if (conversationId === currentConversationId) {
       handleNewConversation();
     }
+  };
+
+  // Clear chat - reset to welcome message but keep the same conversation
+  const handleClearChat = () => {
+    setMessages([
+      {
+        role: "assistant",
+        content:
+          "Welcome to DocuChat! Drop your documents here or use the 📎 button, then ask me anything about them.",
+        timestamp: new Date(),
+      },
+    ]);
+    setShowClearChatConfirmModal(false);
+    toast.success("Conversation cleared");
   };
 
   return (
@@ -810,6 +831,25 @@ export default function ChatPage() {
         variant="warning"
       />
 
+      {/* Share Modal */}
+      <ShareModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        conversationId={currentConversationId}
+      />
+
+      {/* Clear Chat Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showClearChatConfirmModal}
+        onClose={() => setShowClearChatConfirmModal(false)}
+        onConfirm={handleClearChat}
+        title="Clear conversation?"
+        message="This will reset the current conversation to the welcome message. The conversation will remain in your sidebar."
+        confirmText="Clear"
+        cancelText="Cancel"
+        variant="warning"
+      />
+
       <div className="flex h-full overflow-hidden">
       {/* Conversation Sidebar */}
       {user && (
@@ -851,6 +891,24 @@ export default function ChatPage() {
                   <Copy className="w-4 h-4" />
                 )}
                 Copy
+              </button>
+              <button
+                onClick={() => setShowClearChatConfirmModal(true)}
+                disabled={messages.length <= 1 || isLoading}
+                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-sm font-medium text-slate-700 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Clear conversation"
+              >
+                <Trash2 className="w-4 h-4" />
+                Clear
+              </button>
+              <button
+                onClick={() => setShowShareModal(true)}
+                disabled={messages.length <= 1 || isLoading}
+                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-sm font-medium text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Share conversation"
+              >
+                <Share2 className="w-4 h-4" />
+                Share
               </button>
               <ExportDropdown messages={messages} disabled={isLoading} />
             </div>
