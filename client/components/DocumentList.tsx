@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { ConfirmModal } from "./ConfirmModal";
 import { FileIcon } from "./FileIcon";
+import { EmptyState } from "./EmptyState";
 
 export interface Document {
   id: number;
@@ -124,14 +125,12 @@ export function DocumentList({
 
   if (documents.length === 0) {
     return (
-      <div className="text-center py-12">
-        <FileText className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-        <h3 className="text-lg font-semibold text-slate-900 mb-2">
-          No documents yet
-        </h3>
-        <p className="text-sm text-slate-600">
-          Upload your first document to get started
-        </p>
+      <div className="py-4">
+        <EmptyState
+          variant="no-documents"
+          title="No documents yet"
+          description="Upload PDFs to start chatting with your documents"
+        />
       </div>
     );
   }

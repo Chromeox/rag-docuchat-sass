@@ -832,7 +832,7 @@ export default function ChatPage() {
               ref={inputRef}
               type="text"
               value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
+              onChange={(e) => setInputValue(e.target.value.slice(0, 4000))}
               placeholder="Ask anything about your documents... (? for shortcuts)"
               disabled={isLoading}
               className="flex-1 px-6 py-3 border border-slate-200 dark:border-slate-700 rounded-full focus:outline-none focus:border-blue-400 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900 disabled:opacity-50 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
@@ -852,6 +852,17 @@ export default function ChatPage() {
               )}
             </button>
           </form>
+          <div className="flex justify-end mt-2 pr-24">
+            <span
+              className={`text-xs ${
+                inputValue.length > 3500
+                  ? "text-red-500 dark:text-red-400"
+                  : "text-slate-400 dark:text-slate-500"
+              }`}
+            >
+              {inputValue.length}/4000
+            </span>
+          </div>
         </div>
       </footer>
       </div>

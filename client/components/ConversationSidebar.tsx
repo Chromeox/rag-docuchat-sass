@@ -15,6 +15,7 @@ import {
   Moon,
 } from "lucide-react";
 import { ConversationItem } from "./ConversationItem";
+import { EmptyState } from "./EmptyState";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { useTheme } from "@/contexts/ThemeContext";
 
@@ -400,13 +401,18 @@ export function ConversationSidebar({
                 </p>
               </>
             ) : (
-              <>
-                <MessageSquare className="w-10 h-10 text-slate-300 dark:text-slate-600 mb-3" />
-                <p className="text-sm text-slate-500 dark:text-slate-400">No conversations yet</p>
-                <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
-                  Start a new chat to begin
-                </p>
-              </>
+              <EmptyState
+                variant="no-conversations"
+                title="No conversations yet"
+                description="Start a new chat to begin"
+                action={{
+                  label: "New Chat",
+                  onClick: () => {
+                    onNewConversation();
+                    setIsMobileOpen(false);
+                  },
+                }}
+              />
             )}
           </div>
         ) : (
