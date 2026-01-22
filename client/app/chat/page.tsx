@@ -350,45 +350,8 @@ export default function ChatPage() {
     };
   }, []);
 
-  // Show loading while checking auth
-  if (!isLoaded) {
-    return (
-      <div style={{
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        minHeight: "100vh",
-        fontSize: "18px"
-      }}>
-        Loading...
-      </div>
-    );
-  }
-
-  // Don't render chat if not signed in
-  if (!isSignedIn || !user) {
-    return null;
-  }
-
-  const handleQuickPrompt = (prompt: string) => {
-    sendMessage(prompt);
-  };
-
-  const handleUploadComplete = () => {
-    setHasDocuments(true);
-    setShowUpload(false);
-    // Add a success message to the chat
-    setMessages((prev) => [
-      ...prev,
-      {
-        role: "assistant",
-        content: `Great! Your documents have been uploaded and are being processed. You can now ask me questions about your documents!`,
-        timestamp: new Date(),
-      },
-    ]);
-  };
-
   // Handle inline file upload (for drag-and-drop)
+  // NOTE: This hook must be before early returns to follow React's Rules of Hooks
   const handleInlineUpload = useCallback(async (files: FileList) => {
     console.log("[UPLOAD] handleInlineUpload called", { userId: user?.id, fileCount: files.length, isLoaded, isSignedIn });
 
@@ -496,7 +459,7 @@ export default function ChatPage() {
         },
       ]);
     }
-  }, [user?.id, getToken, isLoaded, isSignedIn, toast]);
+  }, [user, getToken, isLoaded, isSignedIn, toast]);
 
   // Keep the ref updated with the latest handleInlineUpload (fixes stale closure)
   useEffect(() => {
@@ -535,6 +498,44 @@ export default function ChatPage() {
       scrollContainerRef.current.scrollTo({ top: 0, behavior: "smooth" });
     }
   }, []);
+
+  // Show loading while checking auth
+  if (!isLoaded) {
+    return (
+      <div style={{
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        minHeight: "100vh",
+        fontSize: "18px"
+      }}>
+        Loading...
+      </div>
+    );
+  }
+
+  // Don't render chat if not signed in
+  if (!isSignedIn || !user) {
+    return null;
+  }
+
+  // Non-hook helper functions (safe after early returns)
+  const handleQuickPrompt = (prompt: string) => {
+    sendMessage(prompt);
+  };
+
+  const handleUploadComplete = () => {
+    setHasDocuments(true);
+    setShowUpload(false);
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "assistant",
+        content: `Great! Your documents have been uploaded and are being processed. You can now ask me questions about your documents!`,
+        timestamp: new Date(),
+      },
+    ]);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -661,7 +662,7 @@ export default function ChatPage() {
             content: "Hi! I'm your DocuChat assistant. I can help you query and analyze your documents using advanced AI. **Drag files anywhere on the page** or click the 📎 button to upload documents, then ask me anything about them!",
             timestamp: new Date(),
           },
-          ...loadedMessages.map((msg: any) => ({
+          ...loadedMessages.map((msg: { role: string; content: string; created_at?: string }) => ({
             role: msg.role as "user" | "assistant",
             content: msg.content,
             timestamp: msg.created_at ? new Date(msg.created_at) : new Date(),
