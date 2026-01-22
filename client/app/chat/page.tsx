@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, FileText, Paperclip, X, FolderOpen, Copy, Check, RefreshCw, ArrowDownToLine, PauseCircle, ThumbsUp, ThumbsDown, ChevronUp } from "lucide-react";
+import { Send, FileText, Paperclip, X, FolderOpen, Copy, Check, RefreshCw, ArrowDownToLine, PauseCircle, ThumbsUp, ThumbsDown, ChevronUp, MessageSquare } from "lucide-react";
 import { SuggestedPrompts } from "@/components/SuggestedPrompts";
 import { DocumentUpload } from "@/components/DocumentUpload";
 import { ConversationSidebar } from "@/components/ConversationSidebar";
@@ -13,6 +13,7 @@ import { FileIcon } from "@/components/FileIcon";
 import { ExportDropdown } from "@/components/ExportDropdown";
 import { StreamingMessage } from "@/components/StreamingMessage";
 import { ShortcutsModal } from "@/components/ShortcutsModal";
+import { ConfirmModal } from "@/components/ConfirmModal";
 import { useToast } from "@/contexts/ToastContext";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 
@@ -41,6 +42,28 @@ function getReadingTime(text: string): { words: number; minutes: number } | null
   if (words < 50) return null;
   const minutes = Math.ceil(words / 200);
   return { words, minutes };
+}
+
+// Calculate conversation statistics
+function getConversationStats(messages: Message[]): { messageCount: number; wordCount: number; formattedWords: string } | null {
+  // Exclude the initial welcome message (first message if it's from assistant)
+  const conversationMessages = messages.length > 1 && messages[0].role === "assistant"
+    ? messages.slice(1)
+    : messages;
+
+  if (conversationMessages.length === 0) return null;
+
+  const messageCount = conversationMessages.length;
+  const wordCount = conversationMessages.reduce((total, msg) => {
+    return total + msg.content.trim().split(/\s+/).length;
+  }, 0);
+
+  // Format word count (e.g., 2400 -> "2.4k")
+  const formattedWords = wordCount >= 1000
+    ? `${(wordCount / 1000).toFixed(1)}k`
+    : wordCount.toString();
+
+  return { messageCount, wordCount, formattedWords };
 }
 
 export default function ChatPage() {
@@ -75,6 +98,7 @@ export default function ChatPage() {
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
   const [showScrollToTop, setShowScrollToTop] = useState(false);
+  const [showNewChatConfirmModal, setShowNewChatConfirmModal] = useState(false);
 
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -235,8 +259,7 @@ export default function ChatPage() {
         key: "n",
         ctrl: true,
         action: () => {
-          handleNewConversation();
-          toast.info("New chat started");
+          requestNewConversation();
         },
         description: "New chat",
       },
@@ -653,6 +676,23 @@ export default function ChatPage() {
     }
   };
 
+  // Check if there are unsaved messages (more than just the welcome message)
+  const hasUnsavedMessages = () => {
+    // If there's only 1 message (the welcome message), no confirmation needed
+    if (messages.length <= 1) return false;
+    // If there are user messages or additional assistant messages, confirmation needed
+    return messages.some(msg => msg.role === "user") || messages.length > 1;
+  };
+
+  // Request new conversation (shows confirmation if needed)
+  const requestNewConversation = () => {
+    if (hasUnsavedMessages()) {
+      setShowNewChatConfirmModal(true);
+    } else {
+      handleNewConversation();
+    }
+  };
+
   const handleNewConversation = () => {
     setMessages([
       {
@@ -662,6 +702,7 @@ export default function ChatPage() {
       },
     ]);
     setCurrentConversationId(null);
+    setShowNewChatConfirmModal(false);
   };
 
   const handleDeleteConversation = (conversationId: number) => {
@@ -744,6 +785,18 @@ export default function ChatPage() {
         onClose={() => setShowShortcutsModal(false)}
       />
 
+      {/* New Chat Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showNewChatConfirmModal}
+        onClose={() => setShowNewChatConfirmModal(false)}
+        onConfirm={handleNewConversation}
+        title="Start a new conversation?"
+        message="Your current conversation will be saved."
+        confirmText="New Chat"
+        cancelText="Cancel"
+        variant="warning"
+      />
+
       <div className="flex h-full overflow-hidden">
       {/* Conversation Sidebar */}
       {user && (
@@ -751,7 +804,7 @@ export default function ChatPage() {
           userId={user.id}
           currentConversationId={currentConversationId}
           onSelectConversation={handleSelectConversation}
-          onNewConversation={handleNewConversation}
+          onNewConversation={requestNewConversation}
           onDeleteConversation={handleDeleteConversation}
         />
       )}
@@ -764,13 +817,25 @@ export default function ChatPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <button
-                onClick={handleNewConversation}
+                onClick={requestNewConversation}
                 className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 hover:border-blue-300 dark:hover:border-blue-600 transition-colors text-sm font-medium text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400"
               >
                 <FileText className="w-4 h-4" />
                 New Chat
               </button>
               <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">DocuChat</h1>
+              {/* Conversation stats indicator */}
+              {(() => {
+                const stats = getConversationStats(messages);
+                return stats ? (
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-xs text-slate-500 dark:text-slate-400">
+                    <MessageSquare className="w-3 h-3" />
+                    <span>{stats.messageCount} msgs</span>
+                    <span className="text-slate-300 dark:text-slate-600">·</span>
+                    <span>{stats.formattedWords} words</span>
+                  </div>
+                ) : null;
+              })()}
             </div>
             <div className="flex items-center gap-3">
               <button
