@@ -330,31 +330,38 @@ export function ConversationSidebar({
           {/* Profile dropdown menu - collapsed sidebar */}
           <AnimatePresence>
             {showProfileMenu && (
-              <motion.div
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -10 }}
-                className="absolute left-full ml-2 bottom-0 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden z-[100] min-w-[160px]"
-              >
-                <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-700">
-                  <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">
-                    {user.fullName || "User"}
-                  </p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                    {user.emailAddresses?.[0]?.emailAddress || ""}
-                  </p>
-                </div>
-                <button
-                  onClick={() => {
-                    setShowProfileMenu(false);
-                    signOut();
-                  }}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+              <>
+                {/* Backdrop to close menu on click outside */}
+                <div
+                  className="fixed inset-0 z-[99]"
+                  onClick={() => setShowProfileMenu(false)}
+                />
+                <motion.div
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -10 }}
+                  className="absolute left-full ml-2 bottom-0 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden z-[100] min-w-[160px]"
                 >
-                  <LogOut className="w-4 h-4" />
-                  Log out
-                </button>
-              </motion.div>
+                  <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-700">
+                    <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">
+                      {user.fullName || "User"}
+                    </p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                      {user.emailAddresses?.[0]?.emailAddress || ""}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShowProfileMenu(false);
+                      signOut();
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Log out
+                  </button>
+                </motion.div>
+              </>
             )}
           </AnimatePresence>
         </div>
@@ -586,23 +593,30 @@ export function ConversationSidebar({
           {/* Profile dropdown menu */}
           <AnimatePresence>
             {showProfileMenu && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 10 }}
-                className="absolute bottom-full left-3 right-3 mb-2 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden z-50"
-              >
-                <button
-                  onClick={() => {
-                    setShowProfileMenu(false);
-                    signOut();
-                  }}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+              <>
+                {/* Backdrop to close menu on click outside */}
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setShowProfileMenu(false)}
+                />
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
+                  className="absolute bottom-full left-3 right-3 mb-2 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden z-50"
                 >
-                  <LogOut className="w-4 h-4" />
-                  Log out
-                </button>
-              </motion.div>
+                  <button
+                    onClick={() => {
+                      setShowProfileMenu(false);
+                      signOut();
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Log out
+                  </button>
+                </motion.div>
+              </>
             )}
           </AnimatePresence>
         </div>
