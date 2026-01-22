@@ -170,7 +170,7 @@ export function ConversationItem({
 
           {!isCollapsed && (
             <div className="flex-1 min-w-0 group/item">
-              <div className="flex items-start justify-between gap-2">
+              <div className="flex items-start gap-1">
                 {isEditing ? (
                   <div className="flex-1 flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                     <input
