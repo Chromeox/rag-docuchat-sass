@@ -216,56 +216,56 @@ export function DocumentManager({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ duration: 0.2 }}
-            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-3xl max-h-[85vh] bg-white rounded-2xl shadow-2xl z-50 flex flex-col"
+            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-3xl max-h-[85vh] bg-white dark:bg-slate-800 rounded-2xl shadow-2xl z-50 flex flex-col"
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
               <div>
-                <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                   <FileText className="w-6 h-6 text-blue-500" />
                   My Documents
                 </h2>
-                <p className="text-sm text-slate-600 mt-1">
+                <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
                   Manage your uploaded documents and ingestion status
                 </p>
               </div>
               <button
                 onClick={onClose}
-                className="p-2 hover:bg-slate-100 rounded-full transition-colors"
+                className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors"
               >
-                <X className="w-5 h-5 text-slate-600" />
+                <X className="w-5 h-5 text-slate-600 dark:text-slate-400" />
               </button>
             </div>
 
             {/* Stats Bar */}
-            <div className="px-6 py-4 bg-slate-50 border-b border-slate-200">
+            <div className="px-6 py-4 bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-6">
                   <div>
-                    <div className="text-2xl font-bold text-slate-900">
+                    <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">
                       {documents.length}
                     </div>
-                    <div className="text-xs text-slate-600">Total</div>
+                    <div className="text-xs text-slate-600 dark:text-slate-400">Total</div>
                   </div>
-                  <div className="h-10 w-px bg-slate-300" />
+                  <div className="h-10 w-px bg-slate-300 dark:bg-slate-600" />
                   <div>
-                    <div className="text-2xl font-bold text-green-600">
+                    <div className="text-2xl font-bold text-green-600 dark:text-green-400">
                       {ingestedCount}
                     </div>
-                    <div className="text-xs text-slate-600">Ready</div>
+                    <div className="text-xs text-slate-600 dark:text-slate-400">Ready</div>
                   </div>
                   <div>
-                    <div className="text-2xl font-bold text-yellow-600">
+                    <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
                       {pendingCount}
                     </div>
-                    <div className="text-xs text-slate-600">Pending</div>
+                    <div className="text-xs text-slate-600 dark:text-slate-400">Pending</div>
                   </div>
                   {errorCount > 0 && (
                     <div>
-                      <div className="text-2xl font-bold text-red-600">
+                      <div className="text-2xl font-bold text-red-600 dark:text-red-400">
                         {errorCount}
                       </div>
-                      <div className="text-xs text-slate-600">Errors</div>
+                      <div className="text-xs text-slate-600 dark:text-slate-400">Errors</div>
                     </div>
                   )}
                 </div>
@@ -294,7 +294,7 @@ export function DocumentManager({
                     <button
                       onClick={() => setShowClearAllModal(true)}
                       disabled={isLoading || isClearing}
-                      className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isClearing ? (
                         <>
@@ -324,14 +324,14 @@ export function DocumentManager({
             </div>
 
             {/* Footer */}
-            <div className="px-6 py-4 border-t border-slate-200 bg-slate-50">
+            <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
               <div className="flex items-center justify-between">
-                <p className="text-xs text-slate-600">
+                <p className="text-xs text-slate-600 dark:text-slate-400">
                   Documents are automatically used for RAG queries after ingestion
                 </p>
                 <button
                   onClick={onUploadClick}
-                  className="px-4 py-2 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded-lg transition-colors"
                 >
                   Upload More
                 </button>

@@ -10,6 +10,8 @@ import { DocumentUpload } from "@/components/DocumentUpload";
 import { ConversationSidebar } from "@/components/ConversationSidebar";
 import { DocumentManager } from "@/components/DocumentManager";
 import { FileIcon } from "@/components/FileIcon";
+import { ExportDropdown } from "@/components/ExportDropdown";
+import { StreamingMessage } from "@/components/StreamingMessage";
 import { useToast } from "@/contexts/ToastContext";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 
@@ -41,6 +43,8 @@ export default function ChatPage() {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showDocumentManager, setShowDocumentManager] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState<number | null>(null);
+  const [streamingContent, setStreamingContent] = useState<string>("");
+  const [isStreaming, setIsStreaming] = useState(false);
 
   // Ref to hold the latest upload handler (avoids stale closure in drag-drop effect)
   const handleInlineUploadRef = useRef<(files: FileList) => Promise<void>>(null);
@@ -356,24 +360,32 @@ export default function ChatPage() {
         }
       }
 
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: assistantMessage || "No response from the server.",
-        },
-      ]);
+      // Start streaming effect instead of directly adding to messages
+      const finalContent = assistantMessage || "No response from the server.";
+      setStreamingContent(finalContent);
+      setIsStreaming(true);
+      setIsLoading(false);
     } catch (error) {
       console.error("Error sending message:", error);
+      const errorContent = "Sorry, I encountered an error connecting to the RAG backend. Please make sure the server is running on port 8000.";
+      setStreamingContent(errorContent);
+      setIsStreaming(true);
+      setIsLoading(false);
+    }
+  };
+
+  // Handle streaming complete - add message to history
+  const handleStreamingComplete = () => {
+    if (streamingContent) {
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          content: "Sorry, I encountered an error connecting to the RAG backend. Please make sure the server is running on port 8000.",
+          content: streamingContent,
         },
       ]);
-    } finally {
-      setIsLoading(false);
+      setStreamingContent("");
+      setIsStreaming(false);
     }
   };
 
@@ -440,13 +452,13 @@ export default function ChatPage() {
           exit={{ opacity: 0 }}
           className="fixed inset-0 z-50 bg-gradient-to-br from-green-500/20 via-emerald-500/20 to-teal-500/20 backdrop-blur-sm border-4 border-dashed border-green-500 flex items-center justify-center pointer-events-none"
         >
-          <div className="text-center bg-white/95 rounded-2xl p-12 shadow-2xl border-2 border-green-500">
-            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <FileText className="w-10 h-10 text-green-600" />
+          <div className="text-center bg-white/95 dark:bg-slate-800/95 rounded-2xl p-12 shadow-2xl border-2 border-green-500">
+            <div className="w-20 h-20 bg-green-100 dark:bg-green-900/50 rounded-full flex items-center justify-center mx-auto mb-6">
+              <FileText className="w-10 h-10 text-green-600 dark:text-green-400" />
             </div>
-            <h2 className="text-3xl font-bold text-green-700 mb-2">Drop files here</h2>
-            <p className="text-lg text-slate-600">Upload documents to your knowledge base</p>
-            <p className="text-sm text-slate-500 mt-2">Supports PDF, DOCX, TXT, MD, CSV, JSON & code files (max 10MB each)</p>
+            <h2 className="text-3xl font-bold text-green-700 dark:text-green-400 mb-2">Drop files here</h2>
+            <p className="text-lg text-slate-600 dark:text-slate-300">Upload documents to your knowledge base</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">Supports PDF, DOCX, TXT, MD, CSV, JSON & code files (max 10MB each)</p>
           </div>
         </motion.div>
       )}
@@ -457,23 +469,23 @@ export default function ChatPage() {
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-auto"
+            className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-auto"
           >
-            <div className="p-6 border-b border-slate-200 flex items-center justify-between sticky top-0 bg-white">
+            <div className="p-6 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between sticky top-0 bg-white dark:bg-slate-800">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
-                  <FileText className="w-5 h-5 text-blue-600" />
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900/50 dark:to-purple-900/50 flex items-center justify-center">
+                  <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-slate-900">Upload Documents</h2>
-                  <p className="text-sm text-slate-600">Add files to your knowledge base</p>
+                  <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">Upload Documents</h2>
+                  <p className="text-sm text-slate-600 dark:text-slate-400">Add files to your knowledge base</p>
                 </div>
               </div>
               <button
                 onClick={() => setShowUploadModal(false)}
-                className="p-2 rounded-full hover:bg-slate-100 transition-colors"
+                className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
               >
-                <X className="w-5 h-5 text-slate-600" />
+                <X className="w-5 h-5 text-slate-600 dark:text-slate-400" />
               </button>
             </div>
             <div className="p-6">
@@ -511,30 +523,31 @@ export default function ChatPage() {
       )}
 
       {/* Main chat container */}
-      <div className="flex-1 flex flex-col h-full bg-gradient-to-br from-slate-50 via-white to-blue-50">
+      <div className="flex-1 flex flex-col h-full bg-gradient-to-br from-slate-50 via-white to-blue-50 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800">
       {/* Header with navigation */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
+      <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4 max-w-4xl">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <button
                 onClick={handleNewConversation}
-                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 hover:border-blue-300 transition-colors text-sm font-medium text-slate-700 hover:text-blue-600"
+                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 hover:border-blue-300 dark:hover:border-blue-600 transition-colors text-sm font-medium text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400"
               >
                 <FileText className="w-4 h-4" />
                 New Chat
               </button>
-              <h1 className="text-xl font-bold text-slate-900">DocuChat</h1>
+              <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">DocuChat</h1>
             </div>
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setShowDocumentManager(true)}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors text-sm font-medium text-slate-700 hover:text-blue-600"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-sm font-medium text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400"
               >
                 <FolderOpen className="w-4 h-4" />
                 My Documents
               </button>
-              <div className="text-sm text-slate-600">
+              <ExportDropdown messages={messages} disabled={isLoading} />
+              <div className="text-sm text-slate-600 dark:text-slate-400">
                 {user.username || user.emailAddresses[0]?.emailAddress}
               </div>
             </div>
@@ -558,7 +571,7 @@ export default function ChatPage() {
                 className={`relative max-w-2xl px-6 py-4 rounded-2xl message-bubble ${
                   msg.role === "user"
                     ? "bg-blue-600 text-white rounded-br-none"
-                    : "bg-white border border-slate-200 text-slate-900 rounded-bl-none shadow-sm"
+                    : "bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-bl-none shadow-sm"
                 }`}
               >
                 <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
@@ -567,13 +580,13 @@ export default function ChatPage() {
                 {msg.role === "assistant" && (
                   <button
                     onClick={() => handleCopyMessage(msg.content, idx)}
-                    className="absolute top-2 right-2 p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute top-2 right-2 p-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 opacity-0 group-hover:opacity-100 transition-opacity"
                     title="Copy to clipboard"
                   >
                     {copiedMessageIndex === idx ? (
-                      <Check className="w-3.5 h-3.5 text-green-600" />
+                      <Check className="w-3.5 h-3.5 text-green-600 dark:text-green-400" />
                     ) : (
-                      <Copy className="w-3.5 h-3.5 text-slate-500" />
+                      <Copy className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
                     )}
                   </button>
                 )}
@@ -581,20 +594,32 @@ export default function ChatPage() {
             </motion.div>
           ))}
 
-          {isLoading && (
+          {/* Loading indicator */}
+          {isLoading && !isStreaming && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               className="flex justify-start"
             >
-              <div className="bg-white border border-slate-200 px-6 py-4 rounded-2xl rounded-bl-none shadow-sm">
+              <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-6 py-4 rounded-2xl rounded-bl-none shadow-sm">
                 <div className="flex gap-2">
-                  <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" />
-                  <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce delay-100" />
-                  <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce delay-200" />
+                  <div className="w-2 h-2 bg-slate-400 dark:bg-slate-500 rounded-full animate-bounce" />
+                  <div className="w-2 h-2 bg-slate-400 dark:bg-slate-500 rounded-full animate-bounce delay-100" />
+                  <div className="w-2 h-2 bg-slate-400 dark:bg-slate-500 rounded-full animate-bounce delay-200" />
                 </div>
               </div>
             </motion.div>
+          )}
+
+          {/* Streaming message with typewriter effect */}
+          {isStreaming && streamingContent && (
+            <StreamingMessage
+              content={streamingContent}
+              isComplete={false}
+              onComplete={handleStreamingComplete}
+              onCopy={() => handleCopyMessage(streamingContent, messages.length)}
+              isCopied={copiedMessageIndex === messages.length}
+            />
           )}
         </div>
 
@@ -606,23 +631,23 @@ export default function ChatPage() {
             transition={{ delay: 0.3 }}
             className="mb-8"
           >
-            <p className="text-sm font-medium text-slate-600 mb-3">Suggested questions:</p>
+            <p className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-3">Suggested questions:</p>
             <SuggestedPrompts onSelect={handleQuickPrompt} />
           </motion.div>
         )}
       </main>
 
       {/* Input area */}
-      <footer className="bg-white border-t border-slate-200 sticky bottom-0">
+      <footer className="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700 sticky bottom-0">
         <div className="container mx-auto px-4 py-6 max-w-4xl">
           <form onSubmit={handleSubmit} className="flex gap-3 items-center">
             <button
               type="button"
               onClick={() => setShowUploadModal(true)}
-              className="p-3 rounded-full border border-slate-200 hover:bg-slate-50 hover:border-blue-300 transition-colors flex items-center justify-center group"
+              className="p-3 rounded-full border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 hover:border-blue-300 dark:hover:border-blue-600 transition-colors flex items-center justify-center group"
               title="Upload documents"
             >
-              <Paperclip className="w-5 h-5 text-slate-600 group-hover:text-blue-600 transition-colors" />
+              <Paperclip className="w-5 h-5 text-slate-600 dark:text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors" />
             </button>
             <input
               ref={inputRef}
@@ -631,7 +656,7 @@ export default function ChatPage() {
               onChange={(e) => setInputValue(e.target.value)}
               placeholder="Ask anything about your documents... (Ctrl+/ to focus)"
               disabled={isLoading}
-              className="flex-1 px-6 py-3 border border-slate-200 rounded-full focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 disabled:opacity-50 text-sm"
+              className="flex-1 px-6 py-3 border border-slate-200 dark:border-slate-700 rounded-full focus:outline-none focus:border-blue-400 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900 disabled:opacity-50 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
             />
             <button
               type="submit"

@@ -110,6 +110,30 @@ export function DocumentUpload({ onUploadComplete, className = "" }: DocumentUpl
     }
   };
 
+  // Retry a failed upload
+  const retryUpload = async (fileId: string) => {
+    const fileToRetry = files.find((f) => f.id === fileId);
+    if (!fileToRetry) return;
+
+    // Reset status to pending, clear error
+    setFiles((prev) =>
+      prev.map((f) =>
+        f.id === fileId
+          ? { ...f, status: "uploading", error: undefined, progress: 0 }
+          : f
+      )
+    );
+
+    const success = await uploadFile(fileToRetry);
+
+    // Auto-ingest if retry was successful
+    if (success) {
+      setTimeout(() => {
+        ingestDocuments();
+      }, 500);
+    }
+  };
+
   const ingestDocuments = async () => {
     if (!user?.id) return;
 
@@ -394,12 +418,20 @@ export function DocumentUpload({ onUploadComplete, className = "" }: DocumentUpl
                       </div>
                     )}
 
-                    {/* Error Message */}
+                    {/* Error Message with Retry */}
                     {file.error && (
-                      <p className="text-xs text-red-600 mt-2 flex items-center gap-1">
-                        <AlertCircle className="w-3 h-3" />
-                        {file.error}
-                      </p>
+                      <div className="mt-2 flex items-center gap-2">
+                        <p className="text-xs text-red-600 dark:text-red-400 flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3" />
+                          {file.error}
+                        </p>
+                        <button
+                          onClick={() => retryUpload(file.id)}
+                          className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium hover:underline"
+                        >
+                          Retry
+                        </button>
+                      </div>
                     )}
 
                     {/* Success Message */}

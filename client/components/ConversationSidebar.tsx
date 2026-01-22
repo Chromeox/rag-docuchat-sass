@@ -11,9 +11,12 @@ import {
   Menu,
   Loader2,
   MessageSquare,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { ConversationItem } from "./ConversationItem";
 import { useAuth, useUser } from "@clerk/nextjs";
+import { useTheme } from "@/contexts/ThemeContext";
 
 interface Conversation {
   id: number;
@@ -41,6 +44,7 @@ export function ConversationSidebar({
 }: ConversationSidebarProps) {
   const { user } = useUser();
   const { getToken } = useAuth();
+  const { resolvedTheme, toggleTheme } = useTheme();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [isExpanded, setIsExpanded] = useState(true);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
@@ -138,29 +142,29 @@ export function ConversationSidebar({
   const MobileToggle = () => (
     <button
       onClick={() => setIsMobileOpen(!isMobileOpen)}
-      className="lg:hidden fixed top-4 left-4 z-50 w-10 h-10 flex items-center justify-center bg-white rounded-lg shadow-lg border border-slate-200 hover:bg-slate-50 transition-colors"
+      className="lg:hidden fixed top-4 left-4 z-50 w-10 h-10 flex items-center justify-center bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
     >
       {isMobileOpen ? (
-        <X className="w-5 h-5 text-slate-700" />
+        <X className="w-5 h-5 text-slate-700 dark:text-slate-300" />
       ) : (
-        <Menu className="w-5 h-5 text-slate-700" />
+        <Menu className="w-5 h-5 text-slate-700 dark:text-slate-300" />
       )}
     </button>
   );
 
   // Collapsed sidebar - just icons with tooltips
   const CollapsedSidebar = () => (
-    <div className="flex flex-col items-center py-3 px-2 bg-white border-r border-slate-200 h-full w-14">
+    <div className="flex flex-col items-center py-3 px-2 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-700 h-full w-14">
       <div className="space-y-1 flex-1">
         {/* Toggle - expand */}
         <div className="relative group">
           <button
             onClick={() => setIsExpanded(true)}
-            className="w-10 h-10 flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+            className="w-10 h-10 flex items-center justify-center rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 transition-colors"
           >
             <PanelLeft className="w-5 h-5" />
           </button>
-          <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center gap-2 px-3 py-1.5 bg-slate-900 text-white text-sm rounded-lg whitespace-nowrap z-[100] shadow-lg">
+          <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center gap-2 px-3 py-1.5 bg-slate-900 dark:bg-slate-700 text-white text-sm rounded-lg whitespace-nowrap z-[100] shadow-lg">
             Open sidebar
             <span className="text-slate-400 text-xs font-mono">{modKey}+\</span>
           </div>
@@ -173,11 +177,11 @@ export function ConversationSidebar({
               onNewConversation();
               setIsMobileOpen(false);
             }}
-            className="w-10 h-10 flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+            className="w-10 h-10 flex items-center justify-center rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 transition-colors"
           >
             <SquarePen className="w-5 h-5" />
           </button>
-          <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center gap-2 px-3 py-1.5 bg-slate-900 text-white text-sm rounded-lg whitespace-nowrap z-[100] shadow-lg">
+          <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center gap-2 px-3 py-1.5 bg-slate-900 dark:bg-slate-700 text-white text-sm rounded-lg whitespace-nowrap z-[100] shadow-lg">
             New chat
             <span className="text-slate-400 text-xs font-mono">{modKey}+N</span>
           </div>
@@ -190,21 +194,38 @@ export function ConversationSidebar({
               setShowSearch(true);
               setIsExpanded(true);
             }}
-            className="w-10 h-10 flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+            className="w-10 h-10 flex items-center justify-center rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 transition-colors"
           >
             <Search className="w-5 h-5" />
           </button>
-          <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center gap-2 px-3 py-1.5 bg-slate-900 text-white text-sm rounded-lg whitespace-nowrap z-[100] shadow-lg">
+          <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center gap-2 px-3 py-1.5 bg-slate-900 dark:bg-slate-700 text-white text-sm rounded-lg whitespace-nowrap z-[100] shadow-lg">
             Search chats
             <span className="text-slate-400 text-xs font-mono">{modKey}+K</span>
+          </div>
+        </div>
+
+        {/* Theme toggle */}
+        <div className="relative group">
+          <button
+            onClick={toggleTheme}
+            className="w-10 h-10 flex items-center justify-center rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 transition-colors"
+          >
+            {resolvedTheme === "dark" ? (
+              <Sun className="w-5 h-5" />
+            ) : (
+              <Moon className="w-5 h-5" />
+            )}
+          </button>
+          <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center gap-2 px-3 py-1.5 bg-slate-900 dark:bg-slate-700 text-white text-sm rounded-lg whitespace-nowrap z-[100] shadow-lg">
+            {resolvedTheme === "dark" ? "Light mode" : "Dark mode"}
           </div>
         </div>
       </div>
 
       {/* User Profile - Fixed Bottom */}
       {user && (
-        <div className="relative group flex-shrink-0 pt-3 border-t border-slate-200 bg-white">
-          <button className="w-10 h-10 rounded-full overflow-hidden ring-2 ring-transparent hover:ring-slate-300 transition-all">
+        <div className="relative group flex-shrink-0 pt-3 border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
+          <button className="w-10 h-10 rounded-full overflow-hidden ring-2 ring-transparent hover:ring-slate-300 dark:hover:ring-slate-600 transition-all">
             {user.imageUrl ? (
               <img
                 src={user.imageUrl}
@@ -217,7 +238,7 @@ export function ConversationSidebar({
               </div>
             )}
           </button>
-          <div className="absolute left-full ml-2 bottom-0 hidden group-hover:block px-3 py-1.5 bg-slate-900 text-white text-sm rounded-lg whitespace-nowrap z-[100] shadow-lg">
+          <div className="absolute left-full ml-2 bottom-0 hidden group-hover:block px-3 py-1.5 bg-slate-900 dark:bg-slate-700 text-white text-sm rounded-lg whitespace-nowrap z-[100] shadow-lg">
             {user.fullName || user.emailAddresses?.[0]?.emailAddress || "Account"}
           </div>
         </div>
@@ -227,13 +248,13 @@ export function ConversationSidebar({
 
   // Expanded sidebar - menu items with text labels + conversation list
   const ExpandedSidebar = () => (
-    <div className="flex flex-col h-full bg-white border-r border-slate-200 w-72">
+    <div className="flex flex-col h-full bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-700 w-72">
       {/* Menu items */}
       <div className="p-3 space-y-1">
         {/* Toggle - collapse */}
         <button
           onClick={() => setIsExpanded(false)}
-          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors text-sm"
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 transition-colors text-sm"
         >
           <PanelLeftClose className="w-5 h-5 flex-shrink-0" />
           <span className="flex-1 text-left">Close sidebar</span>
@@ -246,7 +267,7 @@ export function ConversationSidebar({
             onNewConversation();
             setIsMobileOpen(false);
           }}
-          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors text-sm"
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 transition-colors text-sm"
         >
           <SquarePen className="w-5 h-5 flex-shrink-0" />
           <span className="flex-1 text-left">New chat</span>
@@ -258,13 +279,28 @@ export function ConversationSidebar({
           onClick={() => setShowSearch(!showSearch)}
           className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm ${
             showSearch
-              ? "bg-slate-100 text-slate-900"
-              : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+              ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+              : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100"
           }`}
         >
           <Search className="w-5 h-5 flex-shrink-0" />
           <span className="flex-1 text-left">Search chats</span>
           <span className="text-slate-400 text-xs font-mono">{modKey}+K</span>
+        </button>
+
+        {/* Theme toggle */}
+        <button
+          onClick={toggleTheme}
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 transition-colors text-sm"
+        >
+          {resolvedTheme === "dark" ? (
+            <Sun className="w-5 h-5 flex-shrink-0" />
+          ) : (
+            <Moon className="w-5 h-5 flex-shrink-0" />
+          )}
+          <span className="flex-1 text-left">
+            {resolvedTheme === "dark" ? "Light mode" : "Dark mode"}
+          </span>
         </button>
       </div>
 
@@ -278,21 +314,21 @@ export function ConversationSidebar({
             className="overflow-hidden px-3 pb-3"
           >
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-slate-500" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search chats..."
                 autoFocus
-                className="w-full pl-9 pr-8 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400 bg-slate-50"
+                className="w-full pl-9 pr-8 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:border-slate-400 dark:focus:border-slate-500 focus:ring-1 focus:ring-slate-400 dark:focus:ring-slate-500 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
               />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery("")}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-200 rounded"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded"
                 >
-                  <X className="w-3 h-3 text-slate-400" />
+                  <X className="w-3 h-3 text-slate-400 dark:text-slate-500" />
                 </button>
               )}
             </div>
@@ -301,11 +337,11 @@ export function ConversationSidebar({
       </AnimatePresence>
 
       {/* Divider */}
-      <div className="border-t border-slate-200 mx-3" />
+      <div className="border-t border-slate-200 dark:border-slate-700 mx-3" />
 
       {/* Your chats section */}
       <div className="px-3 pt-3 pb-2">
-        <h3 className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+        <h3 className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
           Your chats
         </h3>
       </div>
@@ -320,17 +356,17 @@ export function ConversationSidebar({
           <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
             {searchQuery ? (
               <>
-                <Search className="w-10 h-10 text-slate-300 mb-3" />
-                <p className="text-sm text-slate-500">No chats found</p>
-                <p className="text-xs text-slate-400 mt-1">
+                <Search className="w-10 h-10 text-slate-300 dark:text-slate-600 mb-3" />
+                <p className="text-sm text-slate-500 dark:text-slate-400">No chats found</p>
+                <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
                   Try a different search term
                 </p>
               </>
             ) : (
               <>
-                <MessageSquare className="w-10 h-10 text-slate-300 mb-3" />
-                <p className="text-sm text-slate-500">No conversations yet</p>
-                <p className="text-xs text-slate-400 mt-1">
+                <MessageSquare className="w-10 h-10 text-slate-300 dark:text-slate-600 mb-3" />
+                <p className="text-sm text-slate-500 dark:text-slate-400">No conversations yet</p>
+                <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
                   Start a new chat to begin
                 </p>
               </>
@@ -357,8 +393,8 @@ export function ConversationSidebar({
 
       {/* User Profile - Fixed Bottom */}
       {user && (
-        <div className="flex-shrink-0 p-3 border-t border-slate-200 bg-white">
-          <div className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer">
+        <div className="flex-shrink-0 p-3 border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
+          <div className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer">
             <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
               {user.imageUrl ? (
                 <img
@@ -373,10 +409,10 @@ export function ConversationSidebar({
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-slate-900 truncate">
+              <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">
                 {user.fullName || "User"}
               </p>
-              <p className="text-xs text-slate-500 truncate">
+              <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
                 {user.emailAddresses?.[0]?.emailAddress || ""}
               </p>
             </div>
