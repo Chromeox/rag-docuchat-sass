@@ -12,12 +12,27 @@ import { DocumentManager } from "@/components/DocumentManager";
 import { FileIcon } from "@/components/FileIcon";
 import { ExportDropdown } from "@/components/ExportDropdown";
 import { StreamingMessage } from "@/components/StreamingMessage";
+import { ShortcutsModal } from "@/components/ShortcutsModal";
 import { useToast } from "@/contexts/ToastContext";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
+  timestamp: Date;
+}
+
+// Format timestamp for display
+function formatTimestamp(date: Date): string {
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMinutes = Math.floor(diffMs / 60000);
+
+  if (diffMinutes < 1) {
+    return "Just now";
+  }
+
+  return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
 export default function ChatPage() {
@@ -33,6 +48,7 @@ export default function ChatPage() {
       role: "assistant",
       content:
         "Hi! I'm your DocuChat assistant. I can help you query and analyze your documents using advanced AI. **Drag files anywhere on the page** or click the 📎 button to upload documents, then ask me anything about them!",
+      timestamp: new Date(),
     },
   ]);
   const [inputValue, setInputValue] = useState("");
@@ -42,6 +58,7 @@ export default function ChatPage() {
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showDocumentManager, setShowDocumentManager] = useState(false);
+  const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState<number | null>(null);
   const [streamingContent, setStreamingContent] = useState<string>("");
   const [isStreaming, setIsStreaming] = useState(false);
@@ -84,6 +101,27 @@ export default function ChatPage() {
       },
     ],
   });
+
+  // Listen for ? key to open shortcuts modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Only trigger if ? is pressed without modifiers and not in an input/textarea
+      if (
+        e.key === "?" &&
+        !e.ctrlKey &&
+        !e.metaKey &&
+        !e.altKey &&
+        !(e.target instanceof HTMLInputElement) &&
+        !(e.target instanceof HTMLTextAreaElement)
+      ) {
+        e.preventDefault();
+        setShowShortcutsModal(true);
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   useEffect(() => {
     // Redirect to home if not signed in
@@ -173,6 +211,7 @@ export default function ChatPage() {
       {
         role: "assistant",
         content: `Great! Your documents have been uploaded and are being processed. You can now ask me questions about your documents!`,
+        timestamp: new Date(),
       },
     ]);
   };
@@ -201,6 +240,7 @@ export default function ChatPage() {
       {
         role: "assistant",
         content: `📎 Uploading ${fileArray.length} ${fileArray.length === 1 ? "file" : "files"}: ${fileNames}...`,
+        timestamp: new Date(),
       },
     ]);
 
@@ -265,6 +305,7 @@ export default function ChatPage() {
         {
           role: "assistant",
           content: `✓ Successfully uploaded and processed ${fileArray.length} ${fileArray.length === 1 ? "file" : "files"}! You can now ask me questions about your documents.`,
+          timestamp: new Date(),
         },
       ]);
 
@@ -279,6 +320,7 @@ export default function ChatPage() {
         {
           role: "assistant",
           content: `❌ Upload failed: ${errorMessage}. Check browser console for details.`,
+          timestamp: new Date(),
         },
       ]);
     }
@@ -299,7 +341,7 @@ export default function ChatPage() {
 
   const sendMessage = async (message: string) => {
     // Add user message
-    setMessages((prev) => [...prev, { role: "user", content: message }]);
+    setMessages((prev) => [...prev, { role: "user", content: message, timestamp: new Date() }]);
     setIsLoading(true);
 
     try {
@@ -382,6 +424,7 @@ export default function ChatPage() {
         {
           role: "assistant",
           content: streamingContent,
+          timestamp: new Date(),
         },
       ]);
       setStreamingContent("");
@@ -406,15 +449,17 @@ export default function ChatPage() {
       );
 
       if (response.ok) {
-        const messages = await response.json();
+        const loadedMessages = await response.json();
         setMessages([
           {
             role: "assistant",
             content: "Hi! I'm your DocuChat assistant. I can help you query and analyze your documents using advanced AI. **Drag files anywhere on the page** or click the 📎 button to upload documents, then ask me anything about them!",
+            timestamp: new Date(),
           },
-          ...messages.map((msg: any) => ({
+          ...loadedMessages.map((msg: any) => ({
             role: msg.role as "user" | "assistant",
             content: msg.content,
+            timestamp: msg.created_at ? new Date(msg.created_at) : new Date(),
           })),
         ]);
         setCurrentConversationId(conversationId);
@@ -431,6 +476,7 @@ export default function ChatPage() {
       {
         role: "assistant",
         content: "Hi! I'm your DocuChat assistant. I can help you query and analyze your documents using advanced AI. **Drag files anywhere on the page** or click the 📎 button to upload documents, then ask me anything about them!",
+        timestamp: new Date(),
       },
     ]);
     setCurrentConversationId(null);
@@ -510,6 +556,12 @@ export default function ChatPage() {
         }}
       />
 
+      {/* Keyboard Shortcuts Modal */}
+      <ShortcutsModal
+        isOpen={showShortcutsModal}
+        onClose={() => setShowShortcutsModal(false)}
+      />
+
       <div className="flex h-full overflow-hidden">
       {/* Conversation Sidebar */}
       {user && (
@@ -575,6 +627,13 @@ export default function ChatPage() {
                 }`}
               >
                 <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                <p className={`text-xs mt-2 ${
+                  msg.role === "user"
+                    ? "text-blue-200"
+                    : "text-slate-500 dark:text-slate-400"
+                }`}>
+                  {formatTimestamp(msg.timestamp)}
+                </p>
 
                 {/* Copy button for assistant messages */}
                 {msg.role === "assistant" && (
@@ -654,7 +713,7 @@ export default function ChatPage() {
               type="text"
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              placeholder="Ask anything about your documents... (Ctrl+/ to focus)"
+              placeholder="Ask anything about your documents... (? for shortcuts)"
               disabled={isLoading}
               className="flex-1 px-6 py-3 border border-slate-200 dark:border-slate-700 rounded-full focus:outline-none focus:border-blue-400 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900 disabled:opacity-50 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
             />
