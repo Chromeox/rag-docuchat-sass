@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, FileText, Paperclip, X, FolderOpen, Copy, Check, RefreshCw, ThumbsUp, ThumbsDown, ChevronUp, MessageSquare } from "lucide-react";
+import { Send, FileText, Paperclip, X, FolderOpen, Copy, Check, RefreshCw, ChevronUp, MessageSquare } from "lucide-react";
 import { SuggestedPrompts } from "@/components/SuggestedPrompts";
 import { DocumentUpload } from "@/components/DocumentUpload";
 import { ConversationSidebar } from "@/components/ConversationSidebar";
@@ -74,13 +74,12 @@ export default function ChatPage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [copiedMessageIndex, setCopiedMessageIndex] = useState<number | null>(null);
   const [conversationCopied, setConversationCopied] = useState(false);
-  const [messageFeedback, setMessageFeedback] = useState<Record<number, "up" | "down" | null>>({});
 
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
       content:
-        "Hi! I'm your DocuChat assistant. I can help you query and analyze your documents using advanced AI. **Drag files anywhere on the page** or click the 📎 button to upload documents, then ask me anything about them!",
+        "Welcome to DocuChat! Drop your documents here or use the 📎 button, then ask me anything about them.",
       timestamp: new Date(),
     },
   ]);
@@ -119,14 +118,6 @@ export default function ChatPage() {
       toast.error("Failed to copy to clipboard");
     }
   }, [toast]);
-
-  // Handle feedback on assistant messages
-  const handleFeedback = useCallback((messageIndex: number, feedback: "up" | "down") => {
-    setMessageFeedback((prev) => ({
-      ...prev,
-      [messageIndex]: prev[messageIndex] === feedback ? null : feedback,
-    }));
-  }, []);
 
   // Copy entire conversation to clipboard
   const handleCopyConversation = useCallback(async () => {
@@ -904,9 +895,9 @@ export default function ChatPage() {
                   ) : null;
                 })()}
 
-                {/* Action buttons for assistant messages */}
+                {/* Action buttons for assistant messages - bottom right */}
                 {msg.role === "assistant" && (
-                  <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="absolute bottom-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     {/* Regenerate button - only show on last assistant message */}
                     {idx === findLastIndex(messages, m => m.role === "assistant") &&
                      messages.some(m => m.role === "user") && (
@@ -930,42 +921,6 @@ export default function ChatPage() {
                       ) : (
                         <Copy className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
                       )}
-                    </button>
-                    {/* Thumbs up button */}
-                    <button
-                      onClick={() => handleFeedback(idx, "up")}
-                      className={`p-1.5 rounded-lg transition-all ${
-                        messageFeedback[idx] === "up"
-                          ? "bg-green-100 dark:bg-green-900/50"
-                          : "bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600"
-                      }`}
-                      title="Good response"
-                    >
-                      <ThumbsUp
-                        className={`w-3.5 h-3.5 transition-colors ${
-                          messageFeedback[idx] === "up"
-                            ? "text-green-600 dark:text-green-400 fill-green-600 dark:fill-green-400"
-                            : "text-slate-500 dark:text-slate-400"
-                        }`}
-                      />
-                    </button>
-                    {/* Thumbs down button */}
-                    <button
-                      onClick={() => handleFeedback(idx, "down")}
-                      className={`p-1.5 rounded-lg transition-all ${
-                        messageFeedback[idx] === "down"
-                          ? "bg-red-100 dark:bg-red-900/50"
-                          : "bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600"
-                      }`}
-                      title="Poor response"
-                    >
-                      <ThumbsDown
-                        className={`w-3.5 h-3.5 transition-colors ${
-                          messageFeedback[idx] === "down"
-                            ? "text-red-600 dark:text-red-400 fill-red-600 dark:fill-red-400"
-                            : "text-slate-500 dark:text-slate-400"
-                        }`}
-                      />
                     </button>
                   </div>
                 )}

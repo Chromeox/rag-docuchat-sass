@@ -13,6 +13,8 @@ import {
   Sun,
   Moon,
   Pin,
+  LogOut,
+  ChevronUp,
 } from "lucide-react";
 import { ConversationItem } from "./ConversationItem";
 import { EmptyState } from "./EmptyState";
@@ -47,7 +49,7 @@ export function ConversationSidebar({
   onRenameConversation,
 }: ConversationSidebarProps) {
   const { user } = useUser();
-  const { getToken } = useAuth();
+  const { getToken, signOut } = useAuth();
   const { resolvedTheme, toggleTheme } = useTheme();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [isExpanded, setIsExpanded] = useState(true);
@@ -56,6 +58,7 @@ export function ConversationSidebar({
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
   const [pinnedIds, setPinnedIds] = useState<number[]>([]);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
 
   // localStorage key for pinned conversations
   const PINNED_STORAGE_KEY = "docuchat-pinned-conversations";
@@ -306,8 +309,11 @@ export function ConversationSidebar({
 
       {/* User Profile - Fixed Bottom */}
       {user && (
-        <div className="relative group flex-shrink-0 pt-3 border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
-          <button className="w-10 h-10 rounded-full overflow-hidden ring-2 ring-transparent hover:ring-slate-300 dark:hover:ring-slate-600 transition-all">
+        <div className="relative flex-shrink-0 pt-3 border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
+          <button
+            onClick={() => setShowProfileMenu(!showProfileMenu)}
+            className="w-10 h-10 rounded-full overflow-hidden ring-2 ring-transparent hover:ring-slate-300 dark:hover:ring-slate-600 transition-all"
+          >
             {user.imageUrl ? (
               <img
                 src={user.imageUrl}
@@ -320,9 +326,37 @@ export function ConversationSidebar({
               </div>
             )}
           </button>
-          <div className="absolute left-full ml-2 bottom-0 hidden group-hover:block px-3 py-1.5 bg-slate-900 dark:bg-slate-700 text-white text-sm rounded-lg whitespace-nowrap z-[100] shadow-lg">
-            {user.fullName || user.emailAddresses?.[0]?.emailAddress || "Account"}
-          </div>
+
+          {/* Profile dropdown menu - collapsed sidebar */}
+          <AnimatePresence>
+            {showProfileMenu && (
+              <motion.div
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -10 }}
+                className="absolute left-full ml-2 bottom-0 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden z-[100] min-w-[160px]"
+              >
+                <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-700">
+                  <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">
+                    {user.fullName || "User"}
+                  </p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                    {user.emailAddresses?.[0]?.emailAddress || ""}
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowProfileMenu(false);
+                    signOut();
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Log out
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       )}
     </div>
@@ -520,8 +554,11 @@ export function ConversationSidebar({
 
       {/* User Profile - Fixed Bottom */}
       {user && (
-        <div className="flex-shrink-0 p-3 border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
-          <div className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer">
+        <div className="relative flex-shrink-0 p-3 border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
+          <button
+            onClick={() => setShowProfileMenu(!showProfileMenu)}
+            className="w-full flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          >
             <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
               {user.imageUrl ? (
                 <img
@@ -535,7 +572,7 @@ export function ConversationSidebar({
                 </div>
               )}
             </div>
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 text-left">
               <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">
                 {user.fullName || "User"}
               </p>
@@ -543,7 +580,31 @@ export function ConversationSidebar({
                 {user.emailAddresses?.[0]?.emailAddress || ""}
               </p>
             </div>
-          </div>
+            <ChevronUp className={`w-4 h-4 text-slate-400 transition-transform ${showProfileMenu ? "" : "rotate-180"}`} />
+          </button>
+
+          {/* Profile dropdown menu */}
+          <AnimatePresence>
+            {showProfileMenu && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                className="absolute bottom-full left-3 right-3 mb-2 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden z-50"
+              >
+                <button
+                  onClick={() => {
+                    setShowProfileMenu(false);
+                    signOut();
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Log out
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       )}
     </div>
