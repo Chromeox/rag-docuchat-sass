@@ -9,7 +9,6 @@ import {
   Search,
   X,
   Menu,
-  Loader2,
   MessageSquare,
   Sun,
   Moon,
@@ -17,6 +16,7 @@ import {
 } from "lucide-react";
 import { ConversationItem } from "./ConversationItem";
 import { EmptyState } from "./EmptyState";
+import { ConversationSkeletons } from "./Skeleton";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { useTheme } from "@/contexts/ThemeContext";
 
@@ -431,9 +431,7 @@ export function ConversationSidebar({
       {/* Conversations list */}
       <div className="flex-1 overflow-y-auto custom-scrollbar px-2">
         {isLoading ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="w-6 h-6 text-slate-400 animate-spin" />
-          </div>
+          <ConversationSkeletons count={4} />
         ) : pinnedConversations.length === 0 && unpinnedConversations.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
             {searchQuery ? (

@@ -35,6 +35,14 @@ function formatTimestamp(date: Date): string {
   return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
+// Calculate reading time for a message
+function getReadingTime(text: string): { words: number; minutes: number } | null {
+  const words = text.trim().split(/\s+/).length;
+  if (words < 50) return null;
+  const minutes = Math.ceil(words / 200);
+  return { words, minutes };
+}
+
 export default function ChatPage() {
   const router = useRouter();
   const { isSignedIn, isLoaded, getToken } = useAuth();
@@ -820,6 +828,15 @@ export default function ChatPage() {
                 }`}>
                   {formatTimestamp(msg.timestamp)}
                 </p>
+                {/* Reading time indicator for assistant messages */}
+                {msg.role === "assistant" && (() => {
+                  const readingTime = getReadingTime(msg.content);
+                  return readingTime ? (
+                    <p className="text-xs mt-1 text-slate-400 dark:text-slate-500">
+                      ~{readingTime.words} words · {readingTime.minutes} min read
+                    </p>
+                  ) : null;
+                })()}
 
                 {/* Action buttons for assistant messages */}
                 {msg.role === "assistant" && (
