@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Send, FileText, Paperclip, X, FolderOpen, Copy, Check, RefreshCw } from "lucide-react";
+import { Send, FileText, Paperclip, X, FolderOpen, Copy, Check, RefreshCw, ArrowDownToLine, PauseCircle } from "lucide-react";
 import { SuggestedPrompts } from "@/components/SuggestedPrompts";
 import { DocumentUpload } from "@/components/DocumentUpload";
 import { ConversationSidebar } from "@/components/ConversationSidebar";
@@ -42,6 +42,7 @@ export default function ChatPage() {
   const toast = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
   const [copiedMessageIndex, setCopiedMessageIndex] = useState<number | null>(null);
+  const [conversationCopied, setConversationCopied] = useState(false);
 
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -63,6 +64,11 @@ export default function ChatPage() {
   const [streamingContent, setStreamingContent] = useState<string>("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
+
+  // Refs
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Ref to hold the latest upload handler (avoids stale closure in drag-drop effect)
   const handleInlineUploadRef = useRef<(files: FileList) => Promise<void>>(null);
@@ -79,6 +85,26 @@ export default function ChatPage() {
       toast.error("Failed to copy to clipboard");
     }
   }, [toast]);
+
+  // Copy entire conversation to clipboard
+  const handleCopyConversation = useCallback(async () => {
+    try {
+      const formattedConversation = messages
+        .map((msg) => {
+          const role = msg.role === "user" ? "You" : "Assistant";
+          return `${role}: ${msg.content}`;
+        })
+        .join("\n\n");
+
+      await navigator.clipboard.writeText(formattedConversation);
+      setConversationCopied(true);
+      toast.success("Conversation copied to clipboard!");
+      // Reset after 2 seconds
+      setTimeout(() => setConversationCopied(false), 2000);
+    } catch (err) {
+      toast.error("Failed to copy conversation");
+    }
+  }, [messages, toast]);
 
   // Helper to find last index (for broader browser compatibility)
   const findLastIndex = <T,>(arr: T[], predicate: (item: T) => boolean): number => {
@@ -436,6 +462,18 @@ export default function ChatPage() {
     handleInlineUploadRef.current = handleInlineUpload;
   }, [handleInlineUpload]);
 
+  // Auto-scroll to bottom when new messages arrive (if enabled)
+  const scrollToBottom = useCallback(() => {
+    if (autoScrollEnabled && messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [autoScrollEnabled]);
+
+  // Scroll when messages change or streaming content updates
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, streamingContent, isLoading, scrollToBottom]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (inputValue.trim() && !isLoading) {
@@ -703,6 +741,18 @@ export default function ChatPage() {
                 <FolderOpen className="w-4 h-4" />
                 My Documents
               </button>
+              <button
+                onClick={handleCopyConversation}
+                disabled={messages.length <= 1 || isLoading}
+                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-sm font-medium text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Copy entire conversation to clipboard"
+              >
+                {conversationCopied ? (
+                  <Check className="w-4 h-4 text-green-600 dark:text-green-400" />
+                ) : (
+                  <Copy className="w-4 h-4" />
+                )}
+              </button>
               <ExportDropdown messages={messages} disabled={isLoading} />
               <div className="text-sm text-slate-600 dark:text-slate-400">
                 {user.username || user.emailAddresses[0]?.emailAddress}
@@ -713,7 +763,7 @@ export default function ChatPage() {
       </header>
 
       {/* Main chat area */}
-      <main className="flex-1 container mx-auto px-4 py-8 max-w-4xl overflow-y-auto custom-scrollbar">
+      <main ref={scrollContainerRef} className="flex-1 container mx-auto px-4 py-8 max-w-4xl overflow-y-auto custom-scrollbar relative">
         {/* Messages */}
         <div className="space-y-6 mb-8">
           {messages.map((msg, idx) => (
@@ -800,7 +850,31 @@ export default function ChatPage() {
               isCopied={copiedMessageIndex === messages.length}
             />
           )}
+
+          {/* Scroll anchor for auto-scroll */}
+          <div ref={messagesEndRef} />
         </div>
+
+        {/* Auto-scroll toggle button - only show when there are messages to scroll */}
+        {messages.length > 1 && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            onClick={() => setAutoScrollEnabled(!autoScrollEnabled)}
+            className={`fixed bottom-32 right-8 z-20 p-3 rounded-full shadow-lg border transition-all duration-200 ${
+              autoScrollEnabled
+                ? "bg-blue-600 border-blue-700 text-white hover:bg-blue-700"
+                : "bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
+            }`}
+            title={autoScrollEnabled ? "Auto-scroll enabled (click to disable)" : "Auto-scroll disabled (click to enable)"}
+          >
+            {autoScrollEnabled ? (
+              <ArrowDownToLine className="w-5 h-5" />
+            ) : (
+              <PauseCircle className="w-5 h-5" />
+            )}
+          </motion.button>
+        )}
 
         {/* Suggested questions (show when starting) */}
         {messages.length === 1 && !showUpload && (
