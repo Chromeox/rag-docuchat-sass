@@ -3,8 +3,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
-import { Send, FileText, Paperclip, X, FolderOpen, Copy, Check, RefreshCw, ArrowDownToLine, PauseCircle, ThumbsUp, ThumbsDown } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Send, FileText, Paperclip, X, FolderOpen, Copy, Check, RefreshCw, ArrowDownToLine, PauseCircle, ThumbsUp, ThumbsDown, ChevronUp } from "lucide-react";
 import { SuggestedPrompts } from "@/components/SuggestedPrompts";
 import { DocumentUpload } from "@/components/DocumentUpload";
 import { ConversationSidebar } from "@/components/ConversationSidebar";
@@ -66,6 +66,7 @@ export default function ChatPage() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
+  const [showScrollToTop, setShowScrollToTop] = useState(false);
 
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -483,6 +484,27 @@ export default function ChatPage() {
     scrollToBottom();
   }, [messages, streamingContent, isLoading, scrollToBottom]);
 
+  // Track scroll position for scroll-to-top button
+  useEffect(() => {
+    const scrollContainer = scrollContainerRef.current;
+    if (!scrollContainer) return;
+
+    const handleScroll = () => {
+      const scrollTop = scrollContainer.scrollTop;
+      setShowScrollToTop(scrollTop > 300);
+    };
+
+    scrollContainer.addEventListener("scroll", handleScroll);
+    return () => scrollContainer.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // Scroll to top function
+  const scrollToTop = useCallback(() => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, []);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (inputValue.trim() && !isLoading) {
@@ -899,6 +921,23 @@ export default function ChatPage() {
           {/* Scroll anchor for auto-scroll */}
           <div ref={messagesEndRef} />
         </div>
+
+        {/* Scroll to top button - show when scrolled down past threshold */}
+        <AnimatePresence>
+          {showScrollToTop && (
+            <motion.button
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              transition={{ duration: 0.2 }}
+              onClick={scrollToTop}
+              className="fixed bottom-32 left-8 z-20 p-3 rounded-full shadow-lg border bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 hover:border-slate-400 dark:hover:border-slate-500 transition-colors"
+              title="Scroll to top"
+            >
+              <ChevronUp className="w-5 h-5" />
+            </motion.button>
+          )}
+        </AnimatePresence>
 
         {/* Auto-scroll toggle button - only show when there are messages to scroll */}
         {messages.length > 1 && (

@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
-import { MessageSquare, Trash2, MoreVertical, Pencil, Loader2 } from "lucide-react";
+import { MessageSquare, Trash2, MoreVertical, Pencil, Loader2, Pin } from "lucide-react";
 import { ConfirmModal } from "./ConfirmModal";
 
 interface Conversation {
@@ -18,18 +18,22 @@ interface ConversationItemProps {
   conversation: Conversation;
   isActive: boolean;
   isCollapsed: boolean;
+  isPinned?: boolean;
   onSelect: () => void;
   onDelete: () => void;
   onRename?: (id: number, newTitle: string) => Promise<void>;
+  onTogglePin?: (id: number) => void;
 }
 
 export function ConversationItem({
   conversation,
   isActive,
   isCollapsed,
+  isPinned = false,
   onSelect,
   onDelete,
   onRename,
+  onTogglePin,
 }: ConversationItemProps) {
   const [showMenu, setShowMenu] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -89,6 +93,14 @@ export function ConversationItem({
     setShowMenu(false);
   };
 
+  const handleTogglePin = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onTogglePin) {
+      onTogglePin(conversation.id);
+    }
+    setShowMenu(false);
+  };
+
   const handleCancelEditing = () => {
     setIsEditing(false);
     setEditedTitle(conversation.title);
@@ -142,6 +154,8 @@ export function ConversationItem({
         className={`w-full text-left px-3 py-3 rounded-lg transition-all ${
           isActive
             ? "bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/30 dark:to-purple-900/30 border border-blue-200 dark:border-blue-700"
+            : isPinned
+            ? "bg-amber-50/50 dark:bg-amber-900/10 hover:bg-amber-50 dark:hover:bg-amber-900/20 border border-amber-200/50 dark:border-amber-700/30"
             : "hover:bg-slate-50 dark:hover:bg-slate-800 border border-transparent"
         }`}
       >
@@ -179,13 +193,31 @@ export function ConversationItem({
                   </div>
                 ) : (
                   <>
-                    <h3
-                      className={`text-sm font-medium truncate ${
-                        isActive ? "text-blue-900 dark:text-blue-100" : "text-slate-900 dark:text-slate-100"
-                      }`}
-                    >
-                      {conversation.title}
-                    </h3>
+                    <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                      {isPinned && (
+                        <Pin className="w-3 h-3 text-amber-500 dark:text-amber-400 flex-shrink-0 fill-current" />
+                      )}
+                      <h3
+                        className={`text-sm font-medium truncate ${
+                          isActive ? "text-blue-900 dark:text-blue-100" : "text-slate-900 dark:text-slate-100"
+                        }`}
+                      >
+                        {conversation.title}
+                      </h3>
+                    </div>
+                    {onTogglePin && (
+                      <button
+                        onClick={handleTogglePin}
+                        className={`flex-shrink-0 p-1 rounded transition-all ${
+                          isPinned
+                            ? "opacity-100 text-amber-500 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/30"
+                            : "opacity-0 group-hover/item:opacity-100 hover:bg-slate-200 dark:hover:bg-slate-700"
+                        }`}
+                        title={isPinned ? "Unpin conversation" : "Pin conversation"}
+                      >
+                        <Pin className={`w-3 h-3 ${isPinned ? "fill-current" : "text-slate-400 dark:text-slate-500"}`} />
+                      </button>
+                    )}
                     {onRename && (
                       <button
                         onClick={handleStartEditing}
@@ -233,6 +265,15 @@ export function ConversationItem({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           className="absolute right-3 top-12 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden z-10 min-w-[140px]"
         >
+          {onTogglePin && (
+            <button
+              onClick={handleTogglePin}
+              className="w-full px-4 py-2 text-left text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors flex items-center gap-2"
+            >
+              <Pin className={`w-4 h-4 ${isPinned ? "fill-current text-amber-500" : ""}`} />
+              {isPinned ? "Unpin" : "Pin"}
+            </button>
+          )}
           {onRename && (
             <button
               onClick={handleStartEditing}

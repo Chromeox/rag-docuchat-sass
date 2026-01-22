@@ -13,6 +13,7 @@ import {
   MessageSquare,
   Sun,
   Moon,
+  Pin,
 } from "lucide-react";
 import { ConversationItem } from "./ConversationItem";
 import { EmptyState } from "./EmptyState";
@@ -54,6 +55,41 @@ export function ConversationSidebar({
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
+  const [pinnedIds, setPinnedIds] = useState<number[]>([]);
+
+  // localStorage key for pinned conversations
+  const PINNED_STORAGE_KEY = "docuchat-pinned-conversations";
+
+  // Load pinned conversations from localStorage on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(PINNED_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          setPinnedIds(parsed);
+        }
+      }
+    } catch (error) {
+      console.error("Error loading pinned conversations:", error);
+    }
+  }, []);
+
+  // Save pinned conversations to localStorage when they change
+  useEffect(() => {
+    try {
+      localStorage.setItem(PINNED_STORAGE_KEY, JSON.stringify(pinnedIds));
+    } catch (error) {
+      console.error("Error saving pinned conversations:", error);
+    }
+  }, [pinnedIds]);
+
+  // Toggle pin state for a conversation
+  const handleTogglePin = (id: number) => {
+    setPinnedIds((prev) =>
+      prev.includes(id) ? prev.filter((pinnedId) => pinnedId !== id) : [...prev, id]
+    );
+  };
 
   // Detect OS for keyboard shortcut display
   const isMac = typeof window !== "undefined" && navigator.platform.toUpperCase().indexOf("MAC") >= 0;
@@ -165,16 +201,24 @@ export function ConversationSidebar({
     }
   };
 
-  // Filter conversations by search query
-  const filteredConversations = useMemo(() => {
-    if (!searchQuery.trim()) return conversations;
-    const query = searchQuery.toLowerCase();
-    return conversations.filter(
-      (c) =>
-        c.title.toLowerCase().includes(query) ||
-        c.last_message?.toLowerCase().includes(query)
-    );
-  }, [conversations, searchQuery]);
+  // Filter conversations by search query and separate pinned from unpinned
+  const { pinnedConversations, unpinnedConversations } = useMemo(() => {
+    let filtered = conversations;
+
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = conversations.filter(
+        (c) =>
+          c.title.toLowerCase().includes(query) ||
+          c.last_message?.toLowerCase().includes(query)
+      );
+    }
+
+    const pinned = filtered.filter((c) => pinnedIds.includes(c.id));
+    const unpinned = filtered.filter((c) => !pinnedIds.includes(c.id));
+
+    return { pinnedConversations: pinned, unpinnedConversations: unpinned };
+  }, [conversations, searchQuery, pinnedIds]);
 
   // Mobile toggle button
   const MobileToggle = () => (
@@ -390,7 +434,7 @@ export function ConversationSidebar({
           <div className="flex items-center justify-center py-8">
             <Loader2 className="w-6 h-6 text-slate-400 animate-spin" />
           </div>
-        ) : filteredConversations.length === 0 ? (
+        ) : pinnedConversations.length === 0 && unpinnedConversations.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
             {searchQuery ? (
               <>
@@ -416,21 +460,62 @@ export function ConversationSidebar({
             )}
           </div>
         ) : (
-          <div className="space-y-1 pb-4">
-            {filteredConversations.map((conversation) => (
-              <ConversationItem
-                key={conversation.id}
-                conversation={conversation}
-                isActive={conversation.id === currentConversationId}
-                isCollapsed={false}
-                onSelect={() => {
-                  onSelectConversation(conversation.id);
-                  setIsMobileOpen(false);
-                }}
-                onDelete={() => handleDelete(conversation.id)}
-                onRename={handleRename}
-              />
-            ))}
+          <div className="pb-4">
+            {/* Pinned conversations section */}
+            {pinnedConversations.length > 0 && (
+              <div className="mb-2">
+                <div className="flex items-center gap-1.5 px-3 py-1.5">
+                  <Pin className="w-3 h-3 text-amber-500 dark:text-amber-400" />
+                  <span className="text-xs font-medium text-amber-600 dark:text-amber-400 uppercase tracking-wider">
+                    Pinned
+                  </span>
+                </div>
+                <div className="space-y-1">
+                  {pinnedConversations.map((conversation) => (
+                    <ConversationItem
+                      key={conversation.id}
+                      conversation={conversation}
+                      isActive={conversation.id === currentConversationId}
+                      isCollapsed={false}
+                      isPinned={true}
+                      onSelect={() => {
+                        onSelectConversation(conversation.id);
+                        setIsMobileOpen(false);
+                      }}
+                      onDelete={() => handleDelete(conversation.id)}
+                      onRename={handleRename}
+                      onTogglePin={handleTogglePin}
+                    />
+                  ))}
+                </div>
+                {/* Divider between pinned and unpinned */}
+                {unpinnedConversations.length > 0 && (
+                  <div className="border-t border-slate-200 dark:border-slate-700 mx-3 mt-3 mb-2" />
+                )}
+              </div>
+            )}
+
+            {/* Unpinned conversations section */}
+            {unpinnedConversations.length > 0 && (
+              <div className="space-y-1">
+                {unpinnedConversations.map((conversation) => (
+                  <ConversationItem
+                    key={conversation.id}
+                    conversation={conversation}
+                    isActive={conversation.id === currentConversationId}
+                    isCollapsed={false}
+                    isPinned={false}
+                    onSelect={() => {
+                      onSelectConversation(conversation.id);
+                      setIsMobileOpen(false);
+                    }}
+                    onDelete={() => handleDelete(conversation.id)}
+                    onRename={handleRename}
+                    onTogglePin={handleTogglePin}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
