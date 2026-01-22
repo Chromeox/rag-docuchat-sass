@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, FileText, Paperclip, X, FolderOpen, Copy, Check, RefreshCw, ChevronUp, MessageSquare, Share2, Trash2 } from "lucide-react";
+import { Send, FileText, Paperclip, X, FolderOpen, Copy, Check, RefreshCw, ChevronUp, MessageSquare, Share2, Trash2, Mic, MicOff } from "lucide-react";
 import { SuggestedPrompts } from "@/components/SuggestedPrompts";
 import { DocumentUpload } from "@/components/DocumentUpload";
 import { ConversationSidebar } from "@/components/ConversationSidebar";
@@ -18,6 +18,50 @@ import { ShareModal } from "@/components/ShareModal";
 import { useToast } from "@/contexts/ToastContext";
 import { useSound } from "@/contexts/SoundContext";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+
+// Web Speech API types
+interface SpeechRecognitionEvent extends Event {
+  resultIndex: number;
+  results: SpeechRecognitionResultList;
+}
+
+interface SpeechRecognitionErrorEvent extends Event {
+  error: string;
+}
+
+interface SpeechRecognitionResultList {
+  length: number;
+  [index: number]: SpeechRecognitionResult;
+}
+
+interface SpeechRecognitionResult {
+  [index: number]: SpeechRecognitionAlternative;
+  isFinal: boolean;
+}
+
+interface SpeechRecognitionAlternative {
+  transcript: string;
+  confidence: number;
+}
+
+declare global {
+  interface Window {
+    SpeechRecognition: new () => SpeechRecognition;
+    webkitSpeechRecognition: new () => SpeechRecognition;
+  }
+}
+
+interface SpeechRecognition extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult: ((event: SpeechRecognitionEvent) => void) | null;
+  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+  abort: () => void;
+}
 
 interface Message {
   role: "user" | "assistant";
@@ -103,6 +147,7 @@ export default function ChatPage() {
   const [showShareModal, setShowShareModal] = useState(false);
   const [showClearChatConfirmModal, setShowClearChatConfirmModal] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{ progress: number; stage: string } | null>(null);
+  const [isListening, setIsListening] = useState(false);
 
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -110,6 +155,65 @@ export default function ChatPage() {
 
   // Ref to hold the latest upload handler (avoids stale closure in drag-drop effect)
   const handleInlineUploadRef = useRef<(files: FileList) => Promise<void>>(null);
+
+  // Voice recognition ref
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
+
+  // Voice input toggle
+  const toggleVoiceInput = useCallback(() => {
+    // Check browser support
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      toast.error("Voice input not supported in this browser. Try Chrome or Edge.");
+      return;
+    }
+
+    if (isListening) {
+      // Stop listening
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      return;
+    }
+
+    // Start listening
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = "en-US";
+
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      let transcript = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        transcript += event.results[i][0].transcript;
+      }
+      if (transcript) {
+        setInputValue((prev) => (prev + " " + transcript).trim().slice(0, 4000));
+      }
+    };
+
+    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+      console.error("Speech recognition error:", event.error);
+      if (event.error === "not-allowed") {
+        toast.error("Microphone access denied. Please allow microphone access.");
+      }
+      setIsListening(false);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+    setIsListening(true);
+  }, [isListening, toast]);
+
+  // Cleanup voice recognition on unmount
+  useEffect(() => {
+    return () => {
+      recognitionRef.current?.abort();
+    };
+  }, []);
 
   // Copy message to clipboard
   const handleCopyMessage = useCallback(async (content: string, index: number) => {
@@ -1070,6 +1174,27 @@ export default function ChatPage() {
               disabled={isLoading}
               className="flex-1 px-6 py-3 border border-slate-200 dark:border-slate-700 rounded-full focus:outline-none focus:border-blue-400 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900 disabled:opacity-50 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
             />
+            {/* Voice input button */}
+            <button
+              type="button"
+              onClick={toggleVoiceInput}
+              disabled={isLoading}
+              className={`p-3 rounded-full transition-all disabled:opacity-50 ${
+                isListening
+                  ? "bg-red-500 text-white hover:bg-red-600"
+                  : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
+              }`}
+              title={isListening ? "Stop listening" : "Voice input"}
+            >
+              {isListening ? (
+                <div className="relative">
+                  <MicOff className="w-5 h-5" />
+                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-white rounded-full animate-pulse" />
+                </div>
+              ) : (
+                <Mic className="w-5 h-5" />
+              )}
+            </button>
             <button
               type="submit"
               disabled={isLoading || !inputValue.trim()}
