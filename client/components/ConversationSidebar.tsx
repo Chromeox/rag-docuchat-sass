@@ -555,31 +555,13 @@ export function ConversationSidebar({
 
       {/* Desktop sidebar */}
       <aside className="hidden lg:block h-screen sticky top-0">
-        <AnimatePresence mode="wait">
-          {isExpanded ? (
-            <motion.div
-              key="expanded"
-              initial={{ width: 56, opacity: 0 }}
-              animate={{ width: 288, opacity: 1 }}
-              exit={{ width: 56, opacity: 0 }}
-              transition={{ duration: 0.15, ease: "easeOut" }}
-              className="h-full"
-            >
-              <ExpandedSidebar />
-            </motion.div>
-          ) : (
-            <motion.div
-              key="collapsed"
-              initial={{ width: 288, opacity: 0 }}
-              animate={{ width: 56, opacity: 1 }}
-              exit={{ width: 288, opacity: 0 }}
-              transition={{ duration: 0.15, ease: "easeOut" }}
-              className="h-full"
-            >
-              <CollapsedSidebar />
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <motion.div
+          animate={{ width: isExpanded ? 288 : 56 }}
+          transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+          className="h-full overflow-hidden"
+        >
+          {isExpanded ? <ExpandedSidebar /> : <CollapsedSidebar />}
+        </motion.div>
       </aside>
 
       {/* Mobile drawer */}

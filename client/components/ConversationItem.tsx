@@ -205,26 +205,13 @@ export function ConversationItem({
                         {conversation.title}
                       </h3>
                     </div>
-                    {onTogglePin && (
+                    {onTogglePin && isPinned && (
                       <button
                         onClick={handleTogglePin}
-                        className={`flex-shrink-0 p-1 rounded transition-all ${
-                          isPinned
-                            ? "opacity-100 text-amber-500 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/30"
-                            : "opacity-0 group-hover/item:opacity-100 hover:bg-slate-200 dark:hover:bg-slate-700"
-                        }`}
-                        title={isPinned ? "Unpin conversation" : "Pin conversation"}
+                        className="flex-shrink-0 p-1 rounded text-amber-500 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-all"
+                        title="Unpin conversation"
                       >
-                        <Pin className={`w-3 h-3 ${isPinned ? "fill-current" : "text-slate-400 dark:text-slate-500"}`} />
-                      </button>
-                    )}
-                    {onRename && (
-                      <button
-                        onClick={handleStartEditing}
-                        className="flex-shrink-0 p-1 rounded opacity-0 group-hover/item:opacity-100 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
-                        title="Rename conversation"
-                      >
-                        <Pencil className="w-3 h-3 text-slate-400 dark:text-slate-500" />
+                        <Pin className="w-3 h-3 fill-current" />
                       </button>
                     )}
                   </>
@@ -234,7 +221,7 @@ export function ConversationItem({
                     e.stopPropagation();
                     setShowMenu(!showMenu);
                   }}
-                  className="flex-shrink-0 p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                  className="flex-shrink-0 p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors hidden group-hover/item:flex"
                 >
                   <MoreVertical className="w-3 h-3 text-slate-400 dark:text-slate-500" />
                 </button>

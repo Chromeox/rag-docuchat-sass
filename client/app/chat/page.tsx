@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, FileText, Paperclip, X, FolderOpen, Copy, Check, RefreshCw, ArrowDownToLine, PauseCircle, ThumbsUp, ThumbsDown, ChevronUp, MessageSquare } from "lucide-react";
+import { Send, FileText, Paperclip, X, FolderOpen, Copy, Check, RefreshCw, ThumbsUp, ThumbsDown, ChevronUp, MessageSquare } from "lucide-react";
 import { SuggestedPrompts } from "@/components/SuggestedPrompts";
 import { DocumentUpload } from "@/components/DocumentUpload";
 import { ConversationSidebar } from "@/components/ConversationSidebar";
@@ -96,9 +96,9 @@ export default function ChatPage() {
   const [streamingContent, setStreamingContent] = useState<string>("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
-  const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
   const [showScrollToTop, setShowScrollToTop] = useState(false);
   const [showNewChatConfirmModal, setShowNewChatConfirmModal] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{ progress: number; stage: string } | null>(null);
 
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -369,6 +369,9 @@ export default function ChatPage() {
     const fileArray = Array.from(files);
     const fileNames = fileArray.map(f => f.name).join(", ");
 
+    // Start upload progress
+    setUploadProgress({ progress: 0, stage: "Preparing upload..." });
+
     // Add upload progress message to chat
     setMessages((prev) => [
       ...prev,
@@ -393,6 +396,9 @@ export default function ChatPage() {
         throw new Error("Failed to get authentication token");
       }
 
+      // Update progress: uploading
+      setUploadProgress({ progress: 10, stage: "Uploading files..." });
+
       console.log("[UPLOAD] Sending upload request...");
       const response = await fetch(`${apiUrl}/api/upload`, {
         method: "POST",
@@ -401,6 +407,9 @@ export default function ChatPage() {
         },
         body: formData,
       });
+
+      // Update progress: upload complete
+      setUploadProgress({ progress: 50, stage: "Upload complete, processing..." });
 
       console.log("[UPLOAD] Upload response status:", response.status);
 
@@ -413,6 +422,9 @@ export default function ChatPage() {
       const data = await response.json();
       console.log("[UPLOAD] Upload success:", data);
 
+      // Update progress: ingesting
+      setUploadProgress({ progress: 60, stage: "Indexing documents..." });
+
       // Trigger ingestion
       console.log("[INGEST] Triggering ingestion...");
       const ingestResponse = await fetch(`${apiUrl}/api/ingest`, {
@@ -421,6 +433,9 @@ export default function ChatPage() {
           "Authorization": `Bearer ${token}`,
         },
       });
+
+      // Update progress: ingestion in progress
+      setUploadProgress({ progress: 80, stage: "Building search index..." });
 
       console.log("[INGEST] Ingest response status:", ingestResponse.status);
 
@@ -432,6 +447,12 @@ export default function ChatPage() {
 
       const ingestData = await ingestResponse.json();
       console.log("[INGEST] Ingestion success:", ingestData);
+
+      // Update progress: complete
+      setUploadProgress({ progress: 100, stage: "Complete!" });
+
+      // Clear progress after a short delay
+      setTimeout(() => setUploadProgress(null), 1500);
 
       // Add success message and toast
       toast.success(`Successfully processed ${fileArray.length} ${fileArray.length === 1 ? "file" : "files"}!`);
@@ -466,12 +487,12 @@ export default function ChatPage() {
     handleInlineUploadRef.current = handleInlineUpload;
   }, [handleInlineUpload]);
 
-  // Auto-scroll to bottom when new messages arrive (if enabled)
+  // Auto-scroll to bottom when new messages arrive
   const scrollToBottom = useCallback(() => {
-    if (autoScrollEnabled && messagesEndRef.current) {
+    if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [autoScrollEnabled]);
+  }, []);
 
   // Scroll when messages change or streaming content updates
   useEffect(() => {
@@ -814,29 +835,10 @@ export default function ChatPage() {
       <div className="flex-1 flex flex-col h-full bg-gradient-to-br from-slate-50 via-white to-blue-50 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800">
       {/* Header with navigation */}
       <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4 max-w-4xl">
+        <div className="container mx-auto px-4 py-3 max-w-4xl">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <button
-                onClick={requestNewConversation}
-                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 hover:border-blue-300 dark:hover:border-blue-600 transition-colors text-sm font-medium text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400"
-              >
-                <FileText className="w-4 h-4" />
-                New Chat
-              </button>
               <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">DocuChat</h1>
-              {/* Conversation stats indicator */}
-              {(() => {
-                const stats = getConversationStats(messages);
-                return stats ? (
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-xs text-slate-500 dark:text-slate-400">
-                    <MessageSquare className="w-3 h-3" />
-                    <span>{stats.messageCount} msgs</span>
-                    <span className="text-slate-300 dark:text-slate-600">·</span>
-                    <span>{stats.formattedWords} words</span>
-                  </div>
-                ) : null;
-              })()}
             </div>
             <div className="flex items-center gap-3">
               <button
@@ -857,11 +859,9 @@ export default function ChatPage() {
                 ) : (
                   <Copy className="w-4 h-4" />
                 )}
+                Copy
               </button>
               <ExportDropdown messages={messages} disabled={isLoading} />
-              <div className="text-sm text-slate-600 dark:text-slate-400">
-                {user.username || user.emailAddresses[0]?.emailAddress}
-              </div>
             </div>
           </div>
         </div>
@@ -1021,27 +1021,6 @@ export default function ChatPage() {
             </motion.button>
           )}
         </AnimatePresence>
-
-        {/* Auto-scroll toggle button - only show when there are messages to scroll */}
-        {messages.length > 1 && (
-          <motion.button
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            onClick={() => setAutoScrollEnabled(!autoScrollEnabled)}
-            className={`fixed bottom-32 right-8 z-20 p-3 rounded-full shadow-lg border transition-all duration-200 ${
-              autoScrollEnabled
-                ? "bg-blue-600 border-blue-700 text-white hover:bg-blue-700"
-                : "bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
-            }`}
-            title={autoScrollEnabled ? "Auto-scroll enabled (click to disable)" : "Auto-scroll disabled (click to enable)"}
-          >
-            {autoScrollEnabled ? (
-              <ArrowDownToLine className="w-5 h-5" />
-            ) : (
-              <PauseCircle className="w-5 h-5" />
-            )}
-          </motion.button>
-        )}
 
         {/* Suggested questions (show when starting) */}
         {messages.length === 1 && !showUpload && (
