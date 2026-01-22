@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Send, FileText, Paperclip, X, FolderOpen, Copy, Check } from "lucide-react";
+import { Send, FileText, Paperclip, X, FolderOpen, Copy, Check, RefreshCw } from "lucide-react";
 import { SuggestedPrompts } from "@/components/SuggestedPrompts";
 import { DocumentUpload } from "@/components/DocumentUpload";
 import { ConversationSidebar } from "@/components/ConversationSidebar";
@@ -62,6 +62,7 @@ export default function ChatPage() {
   const [currentConversationId, setCurrentConversationId] = useState<number | null>(null);
   const [streamingContent, setStreamingContent] = useState<string>("");
   const [isStreaming, setIsStreaming] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
 
   // Ref to hold the latest upload handler (avoids stale closure in drag-drop effect)
   const handleInlineUploadRef = useRef<(files: FileList) => Promise<void>>(null);
@@ -78,6 +79,110 @@ export default function ChatPage() {
       toast.error("Failed to copy to clipboard");
     }
   }, [toast]);
+
+  // Helper to find last index (for broader browser compatibility)
+  const findLastIndex = <T,>(arr: T[], predicate: (item: T) => boolean): number => {
+    for (let i = arr.length - 1; i >= 0; i--) {
+      if (predicate(arr[i])) return i;
+    }
+    return -1;
+  };
+
+  // Regenerate last assistant response
+  const handleRegenerate = useCallback(async () => {
+    // Find the last user message
+    const lastUserMessageIndex = findLastIndex(messages, msg => msg.role === "user");
+    if (lastUserMessageIndex === -1) {
+      toast.error("No user message to regenerate from");
+      return;
+    }
+
+    const lastUserMessage = messages[lastUserMessageIndex].content;
+
+    // Remove the last assistant message (if it exists after the last user message)
+    setMessages(prev => {
+      const newMessages = [...prev];
+      // Find and remove the last assistant message
+      const lastAssistantIndex = findLastIndex(newMessages, msg => msg.role === "assistant");
+      if (lastAssistantIndex > lastUserMessageIndex) {
+        newMessages.splice(lastAssistantIndex, 1);
+      }
+      return newMessages;
+    });
+
+    setIsRegenerating(true);
+
+    try {
+      // Call the RAG backend API
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const token = await getToken();
+      const response = await fetch(`${apiUrl}/chat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          question: lastUserMessage,
+          conversation_id: currentConversationId,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      // Read the streaming response
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let assistantMessage = "";
+      let conversationId = currentConversationId;
+      let isFirstChunk = true;
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value);
+
+          // First chunk contains conversation_id as JSON
+          if (isFirstChunk) {
+            const lines = chunk.split('\n');
+            if (lines.length > 0 && lines[0].trim().startsWith('{')) {
+              try {
+                const metadata = JSON.parse(lines[0]);
+                conversationId = metadata.conversation_id;
+                setCurrentConversationId(conversationId);
+                // Add remaining lines to message
+                assistantMessage += lines.slice(1).join('\n');
+              } catch (e) {
+                // If parsing fails, treat as regular message
+                assistantMessage += chunk;
+              }
+            } else {
+              assistantMessage += chunk;
+            }
+            isFirstChunk = false;
+          } else {
+            assistantMessage += chunk;
+          }
+        }
+      }
+
+      // Start streaming effect
+      const finalContent = assistantMessage || "No response from the server.";
+      setStreamingContent(finalContent);
+      setIsStreaming(true);
+      setIsRegenerating(false);
+    } catch (error) {
+      console.error("Error regenerating response:", error);
+      const errorContent = "Sorry, I encountered an error connecting to the RAG backend. Please make sure the server is running on port 8000.";
+      setStreamingContent(errorContent);
+      setIsStreaming(true);
+      setIsRegenerating(false);
+    }
+  }, [messages, currentConversationId, getToken, toast]);
 
   // Keyboard shortcuts
   useKeyboardShortcuts({
@@ -635,26 +740,41 @@ export default function ChatPage() {
                   {formatTimestamp(msg.timestamp)}
                 </p>
 
-                {/* Copy button for assistant messages */}
+                {/* Action buttons for assistant messages */}
                 {msg.role === "assistant" && (
-                  <button
-                    onClick={() => handleCopyMessage(msg.content, idx)}
-                    className="absolute top-2 right-2 p-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 opacity-0 group-hover:opacity-100 transition-opacity"
-                    title="Copy to clipboard"
-                  >
-                    {copiedMessageIndex === idx ? (
-                      <Check className="w-3.5 h-3.5 text-green-600 dark:text-green-400" />
-                    ) : (
-                      <Copy className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
+                  <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {/* Regenerate button - only show on last assistant message */}
+                    {idx === findLastIndex(messages, m => m.role === "assistant") &&
+                     messages.some(m => m.role === "user") && (
+                      <button
+                        onClick={handleRegenerate}
+                        disabled={isLoading || isStreaming || isRegenerating}
+                        className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        title="Regenerate response"
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 text-slate-500 dark:text-slate-400 ${isRegenerating ? 'animate-spin' : ''}`} />
+                      </button>
                     )}
-                  </button>
+                    {/* Copy button */}
+                    <button
+                      onClick={() => handleCopyMessage(msg.content, idx)}
+                      className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 transition-all"
+                      title="Copy to clipboard"
+                    >
+                      {copiedMessageIndex === idx ? (
+                        <Check className="w-3.5 h-3.5 text-green-600 dark:text-green-400" />
+                      ) : (
+                        <Copy className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
+                      )}
+                    </button>
+                  </div>
                 )}
               </div>
             </motion.div>
           ))}
 
           {/* Loading indicator */}
-          {isLoading && !isStreaming && (
+          {(isLoading || isRegenerating) && !isStreaming && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}

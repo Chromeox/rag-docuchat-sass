@@ -33,6 +33,7 @@ interface ConversationSidebarProps {
   onSelectConversation: (id: number) => void;
   onNewConversation: () => void;
   onDeleteConversation: (id: number) => void;
+  onRenameConversation?: (id: number, newTitle: string) => void;
 }
 
 export function ConversationSidebar({
@@ -41,6 +42,7 @@ export function ConversationSidebar({
   onSelectConversation,
   onNewConversation,
   onDeleteConversation,
+  onRenameConversation,
 }: ConversationSidebarProps) {
   const { user } = useUser();
   const { getToken } = useAuth();
@@ -124,6 +126,41 @@ export function ConversationSidebar({
       }
     } catch (error) {
       console.error("Error deleting conversation:", error);
+    }
+  };
+
+  const handleRename = async (id: number, newTitle: string): Promise<void> => {
+    if (!user) return;
+
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const token = await getToken();
+      const response = await fetch(`${apiUrl}/api/conversations/${id}`, {
+        method: "PATCH",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ title: newTitle })
+      });
+
+      if (response.ok) {
+        // Update local state
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.id === id ? { ...c, title: newTitle } : c
+          )
+        );
+        // Notify parent component if callback provided
+        if (onRenameConversation) {
+          onRenameConversation(id, newTitle);
+        }
+      } else {
+        throw new Error("Failed to rename conversation");
+      }
+    } catch (error) {
+      console.error("Error renaming conversation:", error);
+      throw error; // Re-throw to let the ConversationItem handle it
     }
   };
 
@@ -385,6 +422,7 @@ export function ConversationSidebar({
                   setIsMobileOpen(false);
                 }}
                 onDelete={() => handleDelete(conversation.id)}
+                onRename={handleRename}
               />
             ))}
           </div>
